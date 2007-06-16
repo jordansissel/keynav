@@ -1,0 +1,10 @@
+DEPLIBS = $(DEPXTESTLIB) $(DEPEXTENSIONLIB) $(DEPXLIB)
+LOCAL_LIBRARIES = $(XTESTLIB) $(EXTENSIONLIB) $(XLIB)
+
+SRCS = keynav.c
+OBJS = keynav.o
+
+CC = gcc
+
+ComplexProgramTarget(keynav)
+
