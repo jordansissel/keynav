@@ -20,16 +20,140 @@
 #include <X11/extensions/shape.h>
 #include <X11/extensions/XTest.h>
 
+#include "xdotool/xdo.h"
+#include "xdotool/xdo_util.h"
+
 Display *dpy;
 Window root;
-XWindowAttributes attr;
+XWindowAttributes rootattr;
+Window zone;
+xdo_t *xdo;
 
-void grab(char *keyname, int mods) {
-  int key;
+struct wininfo {
+  int x;
+  int y;
+  int w;
+  int h;
+} wininfo;
 
-  key = XKeysymToKeycode(dpy, XStringToKeysym(keyname));
-  XGrabKey(dpy, key, mods, root, False, GrabModeAsync, GrabModeAsync);
-  XGrabKey(dpy, key, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
+void cmd_cut_up(char *args);
+void cmd_cut_down(char *args);
+void cmd_cut_left(char *args);
+void cmd_cut_right(char *args);
+void cmd_move_up(char *args);
+void cmd_move_down(char *args);
+void cmd_move_left(char *args);
+void cmd_move_right(char *args);
+void cmd_warp(char *args);
+void cmd_click(char *args);
+void cmd_doubleclick(char *args);
+void cmd_drag(char *args);
+void cmd_start(char *args);
+void cmd_end(char *args);
+
+void update();
+
+struct dispatch {
+  char *command;
+  void (*func)();
+} dispatch[] = {
+  "cut-up", NULL,
+  "cut-down", NULL,
+  "cut-left", NULL,
+  "cut-right", NULL,
+  "move-up", NULL,
+  "move-down", NULL,
+  "move-left", NULL,
+  "move-right", NULL,
+
+  "warp", NULL,
+  "click", NULL,     
+  "doubleclick", NULL,
+  "drag", NULL,
+
+  "start", NULL,
+  "end", NULL, 
+  NULL, NULL,
+};
+
+struct keybinding {
+  char *cmd;
+  char *args;
+  int keycode;
+  int mods;
+} *keybindings = NULL;
+
+int nkeybindings = 0;
+int keybinding_size = 0;
+
+int parse_keycode(char *keyseq) {
+  char *tokctx;
+  char *strptr;
+  char *tok;
+
+  strptr = keyseq;
+  while ((tok = strtok_r(strptr, "+", &tokctx)) != NULL) {
+    int i;
+    char *maptok = NULL;
+    strptr = NULL;
+
+    // from xdo_util: Map shift -> Shift_L, etc.
+    for (i = 0; symbol_map[i] != NULL; i+=2)
+      if (!strcasecmp(tok, symbol_map[i]))
+        maptok = symbol_map[i + 1];
+
+    if (maptok == NULL)
+      // start from here.. 
+      
+
+
+    
+  }
+}
+
+int parse_mods(char *keyseq) {
+
+}
+
+void addbinding(int keycode, int mods, char *commands);
+  if (nkeybindings == keybinding_size)
+    keybindings = realloc(keybindings, nkeybindings * sizeof(struct keybinding))
+
+  keybindings[nkeybindings].commands = strdup(commands);
+  keybindings[nkeybindings].keycode = keycode;
+  keybindings[nkeybindings].mods = mods;
+
+  /* We don't need to "bind" a key here unless it's for 'start' */
+  if (!strcmp(cmd, "start")) {
+    XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, keycode, mods | LockMask, root, False, GrabModeAsync, 
+             GrabModeAsync);
+  }
+}
+
+void parseconf(char *line) {
+  /* syntax:
+   * keysequence cmd1,cmd2,cmd3
+   *
+   * ex: 
+   * ctrl+semicolon start
+   * space warp
+   * semicolon warp,click
+   */
+
+  char *tokctx;
+  char *keyseq;
+  char *commands;
+  int keycode, mods;
+
+  tokctx = line;
+  keyseq = strdup(strtok(line, " ", &tokctx));
+  commands = strdup(tokctx);
+
+  keycode = parse_keycode(keyseq);
+  mods = parse_mods(keyseq);
+
+  addbinding(keycode, mods, commands);
 }
 
 GC creategc(Window win) {
@@ -41,7 +165,6 @@ GC creategc(Window win) {
   XSetBackground(dpy, gc, WhitePixel(dpy, 0));
   XSetLineAttributes(dpy, gc, 4, LineSolid, CapButt, JoinBevel);
   XSetFillStyle(dpy, gc, FillSolid);
-  //XSetFillStyle(dpy, gc, FillStippled);
 
   return gc;
 }
@@ -80,8 +203,8 @@ void drawquadrants(Window win, int w, int h) {
 
   XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
 
-  XSetForeground(dpy, gc, WhitePixel(dpy, 0));
-  XFillRectangle(dpy, win, gc, 0, 0, w, h);
+  //XSetForeground(dpy, gc, WhitePixel(dpy, 0));
+  //XFillRectangle(dpy, win, gc, 0, 0, w, h);
 
   XSetForeground(dpy, gc, red.pixel);
   XDrawLine(dpy, win, gc, w/2, 0, w/2, h); // vert line
@@ -93,83 +216,23 @@ void drawquadrants(Window win, int w, int h) {
   XFlush(dpy);
 }
 
-void endmousekey() {
-  XUngrabKeyboard(dpy, CurrentTime);
-  XSync(dpy, False);
-  //grab("semicolon", ControlMask);
-}
+/*
+ * move/cut window
+ * drawquadrants again
+ */
 
-int handlekey(int keysym, int mod, int *x, int *y, int *w, int *h) {
-  char *keyname;
-
-  keyname = XKeysymToString(keysym);
-
-#if 0
-  if (!strcmp(keyname, "a")) { // up and left
-    //*x -= *w;
-    //*y -= *h;
-  } else if (!strcmp(keyname, "s")) { // up and right
-    *x += *w;
-    //*y += *h;
-  } else if (!strcmp(keyname, "d")) { // down and left
-    //*x += *w;
-    *y += *h;
-  } else if (!strcmp(keyname, "f")) { // down and right
-    *x += *w;
-    *y += *h;
-  }
-#endif
-
-  if (mod & ControlMask || !mod) {
-    if (*keyname == 'h') { // go left or split left
-      *w /= 2;
-    } else if (*keyname == 'j') { //go down or split down
-      *h /= 2;
-      *y += *h;
-    } else if (*keyname == 'k') { //go up or split up
-      *h /= 2;
-    } else if (*keyname == 'l') { //go right or split right
-      *w /= 2;
-      *x += *w;
-    }
-  } else if (mod & ShiftMask) {
-    if (*keyname == 'h') { // shift left
-      if (*x > 0) *x -= *w;
-    } else if (*keyname == 'j') { //shift down
-      if ((*y + *h) < attr.height) *y += *h;
-    } else if (*keyname == 'k') { //shift up
-      if (*y > 0) *y -= *h;
-    } else if (*keyname == 'l') { //shift right
-      if ((*x + *w) < attr.width) *x += *w;
-    }
-  }
-
-  if (*w < 1 || *h < 1) {
-    /* The box is pretty small, let's give up */
-    return 0;
-  }
-
-  //printf("Box: @(%d,%d) #(%d,%d)\n", *x, *y, *w, *h);
-  return 1;
-}
-
-void startmousekey() {
-  int hits = 0;
-  int keysym;
-  int done = 0;
-  int x,y,w,h;
-  int warp = 1;
-  int click = 0;
+void cmd_start(char *args) {
   XSetWindowAttributes winattr;
 
-  Window zone;
   XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
 
-  x = y = 0;
-  w = attr.width;
-  h = attr.height;
+  wininfo.x = 0;
+  wininfo.y = 0;
+  wininfo.w = rootattr.width;
+  wininfo.h = rootattr.height;
 
-  zone = XCreateSimpleWindow(dpy, root, x, y, w, h, 1, 
+  zone = XCreateSimpleWindow(dpy, root, wininfo.x, wininfo.y, 
+                             wininfo.w, wininfo.h, 0, 
                              BlackPixel(dpy, 0), WhitePixel(dpy, 0));
 
   /* Tell the window manager not to manage us */
@@ -179,46 +242,73 @@ void startmousekey() {
   drawquadrants(zone, w, h);
   XMapWindow(dpy, zone);
   drawquadrants(zone, w, h);
+}
 
-  while (!done) {
-    XEvent e;
-    XNextEvent(dpy, &e);
-    switch (e.type) {
-      case KeyPress:
-        keysym = XKeycodeToKeysym(dpy, e.xkey.keycode, 0);
-
-        if (XStringToKeysym("semicolon") == keysym)
-          done++;
-        else if (XStringToKeysym("space") == keysym) {
-          done++;
-          click = 1;
-        } else if (XStringToKeysym("Escape") == keysym) {
-          warp = 0;
-          done++;
-        } else {
-          if (handlekey(keysym, e.xkey.state, &x, &y, &w, &h)) {
-            hits++;
-            XMoveResizeWindow(dpy, zone, x, y, w, h);
-            drawquadrants(zone, w, h);
-          } else {
-            done++;
-          }
-        }
-        break;
-      case KeyRelease:
-      default:
-        break;
-    }
-  }
-
-  endmousekey();
+void cmd_end(char *args) {
   XDestroyWindow(dpy, zone);
-  if (warp)
-    XWarpPointer(dpy, None, root, 0, 0, 0, 0, x + w/2, y + h/2);
-  if (click) {
-    XTestFakeButtonEvent(dpy, 1, True, CurrentTime); // button down
-    XTestFakeButtonEvent(dpy, 1, False, CurrentTime); // button release
-  } }
+  XUngrabKeyboard(dpy, CurrentTime);
+  XFlush(dpy);
+}
+
+void cmd_cut_up(char *args) {
+  wininfo.h /= 2;
+  update();
+}
+
+void cmd_cut_down(char *args) {
+  wininfo.h /= 2;
+  wininfo.y += wininfo.h;
+  update();
+}
+
+void cmd_cut_left(char *args) {
+  wininfo.w /= 2;
+  update();
+}
+
+void cmd_cut_right(char *args) {
+  wininfo.w /= 2;
+  wininfo.x += wininfo.w;
+  update();
+}
+
+void cmd_move_up(char *args) {
+  wininfo.y -= wininfo.h;
+  update();
+}
+
+void cmd_move_down(char *args) {
+  wininfo.y += wininfo.h;
+  update();
+}
+
+void cmd_move_left(char *args) {
+  wininfo.x -= wininfo.w;
+  update();
+}
+
+void cmd_move_right(char *args) {
+  wininfo.x += wininfo.w;
+  update();
+}
+
+void cmd_warp(char *args) {
+}
+
+void cmd_click(char *args) {
+}
+
+void cmd_doubleclick(char *args) {
+}
+
+void cmd_drag(char *args) {
+}
+
+
+void update() {
+  XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
+  drawquadrants(zone, wininfo.w, wininfo.h);
+}
 
 int main(int argc, char **argv) {
   char *pcDisplay;
@@ -229,31 +319,29 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  //printf("Display: %s\n", pcDisplay);
-
   if ( (dpy = XOpenDisplay(pcDisplay)) == NULL) {
     fprintf(stderr, "Error: Can't open display: %s", pcDisplay);
     exit(1);
   }
 
   root = XDefaultRootWindow(dpy);
-  XGetWindowAttributes(dpy, root, &attr);
+  xdo = xdo_new_with_opened_display(dpy, pcDisplay, False);
 
-  XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("semicolon")),
-           ControlMask, root, False, GrabModeAsync, GrabModeAsync);
+  //grab("semicolon", ControlMask);
+  XGetWindowAttributes(dpy, root, &attr);
 
   while (1) {
     XEvent e;
     XNextEvent(dpy, &e);
     switch (e.type) {
       case KeyPress:
-        startmousekey();
+        handle_keypress();
         break;
       case KeyRelease:
       default:
         break;
     }
   }
+
+  xdo_free(xdo);
 }
-
-

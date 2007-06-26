@@ -1,8 +1,7 @@
 CFLAGS=`pkg-config --cflags x11 xtst`
 LDFLAGS=`pkg-config --libs x11 xtst`
 
-all:
-	@echo "Please run xmkmf."
+all: keynav
 
 keynav: xdo.o keynav.o
 	gcc $(LDFLAGS) xdo.o keynav.o -o $@
