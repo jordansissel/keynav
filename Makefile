@@ -1,9 +1,12 @@
+CFLAGS=`pkg-config --cflags x11 xtst`
+LDFLAGS=`pkg-config --libs x11 xtst`
 
 all:
 	@echo "Please run xmkmf."
-#all: have_gtk
 
-#have_gtk:
-#	@echo "Checking for GTK 2.0"
-#	@pkg-config gtk+-2.0x \
-#	|| (echo "Unable to find GTK 2.0 via pkg-config"; exit 1)
+keynav: xdo.o keynav.o
+	gcc $(LDFLAGS) xdo.o keynav.o -o $@
+
+xdo.o:
+	make -C xdotool xdo.o
+	cp xdotool/xdo.o .
