@@ -5,7 +5,7 @@
 /* XXX: fine-tuning once you're zoomed in? (done?)
  * XXX: "cancel" action (done)
  * XXX: vi-keys half-split (done)
- * XXX: use XGrabKeyboard instead of XGrabKey for the movement mode? 
+ * XXX: use XGrabKeyboard instead of XGrabKey for the movement mode?  (done)
 */
 
 #include <stdio.h>
@@ -28,8 +28,8 @@ void grab(char *keyname, int mods) {
   int key;
 
   key = XKeysymToKeycode(dpy, XStringToKeysym(keyname));
-  XGrabKey(dpy, key, mods, root, False,
-           GrabModeAsync, GrabModeAsync);
+  XGrabKey(dpy, key, mods, root, False, GrabModeAsync, GrabModeAsync);
+  XGrabKey(dpy, key, m | LockMask, root, False, GrabModeAsync, GrabModeAsync);
 }
 
 GC creategc(Window win) {
@@ -93,21 +93,9 @@ void drawquadrants(Window win, int w, int h) {
   XFlush(dpy);
 }
 
-void ungrab(char *keyname, int mod) {
-  int key;
-
-  key = XKeysymToKeycode(dpy, XStringToKeysym(keyname));
-  XUngrabKey(dpy, key, mod, root);
-}
-
 void endmousekey() {
-  ungrab("h",0); ungrab("j",0); ungrab("k",0); ungrab("l",0);
-  ungrab("h",ControlMask); ungrab("j",ControlMask); ungrab("k",ControlMask); ungrab("l",ControlMask);
-  ungrab("h",ShiftMask); ungrab("j",ShiftMask); ungrab("k",ShiftMask); ungrab("l",ShiftMask);
-  ungrab("space", 0);
-  ungrab("semicolon", 0);
-  ungrab("Escape", 0);
-  XSync(dpy, 0);
+  XUngrabKeyboard(dpy, CurrentTime);
+  XSync(dpy, False);
   grab("semicolon", ControlMask);
 }
 
@@ -157,11 +145,11 @@ int handlekey(int keysym, int mod, int *x, int *y, int *w, int *h) {
   }
 
   if (*w < 1 || *h < 1) {
-    printf( "OOPS. Area too small. Giving up :(\n");
+    /* The box is pretty small, let's give up */
     return 0;
   }
 
-  printf("Box: @(%d,%d) #(%d,%d)\n", *x, *y, *w, *h);
+  //printf("Box: @(%d,%d) #(%d,%d)\n", *x, *y, *w, *h);
   return 1;
 }
 
@@ -172,32 +160,26 @@ void startmousekey() {
   int x,y,w,h;
   int warp = 1;
   int click = 0;
+  XSetWindowAttributes winattr;
 
   Window zone;
-
-  grab("h",ShiftMask); grab("j",ShiftMask); grab("k",ShiftMask); grab("l",ShiftMask);
-  grab("h",ControlMask); grab("j",ControlMask); grab("k",ControlMask); grab("l",ControlMask);
-  grab("h",0); grab("j",0); grab("k",0); grab("l",0);
-  grab("semicolon", 0); grab("space", 0); grab("Escape", 0);
+  XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
 
   x = y = 0;
   w = attr.width;
   h = attr.height;
 
-  zone = XCreateSimpleWindow(dpy, root, x, y, w, h, 1, BlackPixel(dpy, 0), WhitePixel(dpy, 0));
+  zone = XCreateSimpleWindow(dpy, root, x, y, w, h, 1, 
+                             BlackPixel(dpy, 0), WhitePixel(dpy, 0));
 
-  { /* Tell the window manager not to manage us */
-    unsigned long valuemask;
-    XSetWindowAttributes winattr;
-    winattr.override_redirect = 1;
-    XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
-  }
+  /* Tell the window manager not to manage us */
+  winattr.override_redirect = 1;
+  XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
 
   drawquadrants(zone, w, h);
   XMapWindow(dpy, zone);
   drawquadrants(zone, w, h);
 
-  printf("Starting quadrants...\n");
   while (!done) {
     XEvent e;
     XNextEvent(dpy, &e);
@@ -216,12 +198,8 @@ void startmousekey() {
         } else {
           if (handlekey(keysym, e.xkey.state, &x, &y, &w, &h)) {
             hits++;
-            //if (hits > 5)
-              //done++;
-            //else {
             XMoveResizeWindow(dpy, zone, x, y, w, h);
             drawquadrants(zone, w, h);
-            //}
           } else {
             done++;
           }
@@ -240,8 +218,7 @@ void startmousekey() {
   if (click) {
     XTestFakeButtonEvent(dpy, 1, True, CurrentTime); // button down
     XTestFakeButtonEvent(dpy, 1, False, CurrentTime); // button release
-  }
-}
+  } }
 
 int main(int argc, char **argv) {
   char *pcDisplay;
@@ -252,7 +229,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  printf("Display: %s\n", pcDisplay);
+  //printf("Display: %s\n", pcDisplay);
 
   if ( (dpy = XOpenDisplay(pcDisplay)) == NULL) {
     fprintf(stderr, "Error: Can't open display: %s", pcDisplay);
@@ -270,7 +247,6 @@ int main(int argc, char **argv) {
     XNextEvent(dpy, &e);
     switch (e.type) {
       case KeyPress:
-        XUngrabKeyboard(dpy, CurrentTime);
         startmousekey();
         break;
       case KeyRelease:
