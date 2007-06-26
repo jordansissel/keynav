@@ -29,7 +29,7 @@ void grab(char *keyname, int mods) {
 
   key = XKeysymToKeycode(dpy, XStringToKeysym(keyname));
   XGrabKey(dpy, key, mods, root, False, GrabModeAsync, GrabModeAsync);
-  XGrabKey(dpy, key, m | LockMask, root, False, GrabModeAsync, GrabModeAsync);
+  XGrabKey(dpy, key, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
 }
 
 GC creategc(Window win) {
@@ -96,7 +96,7 @@ void drawquadrants(Window win, int w, int h) {
 void endmousekey() {
   XUngrabKeyboard(dpy, CurrentTime);
   XSync(dpy, False);
-  grab("semicolon", ControlMask);
+  //grab("semicolon", ControlMask);
 }
 
 int handlekey(int keysym, int mod, int *x, int *y, int *w, int *h) {
