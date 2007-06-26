@@ -270,6 +270,7 @@ int main(int argc, char **argv) {
     XNextEvent(dpy, &e);
     switch (e.type) {
       case KeyPress:
+        XUngrabKeyboard(dpy, CurrentTime);
         startmousekey();
         break;
       case KeyRelease:
