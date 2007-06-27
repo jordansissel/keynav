@@ -258,7 +258,14 @@ void parse_config_line(char *line) {
   if (comment != NULL)
     return;
 
-  //printf("Config: %s\n", line);
+  /* Ignore leading whitespace */
+  while (*line == ' ')
+    line++;
+
+  /* Ignore empty lines */
+  if (*line == '\n' || *line == '\0')
+    return;
+
   tokctx = line;
   keyseq = strdup(strtok_r(line, " ", &tokctx));
   commands = strdup(tokctx);
