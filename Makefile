@@ -1,4 +1,4 @@
-CFLAGS=-g `pkg-config --cflags x11 xtst`
+CFLAGS=`pkg-config --cflags x11 xtst`
 LDFLAGS=`pkg-config --libs x11 xtst`
 
 all: keynav
