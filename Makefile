@@ -1,7 +1,10 @@
-CFLAGS=`pkg-config --cflags x11 xtst`
+CFLAGS=-g `pkg-config --cflags x11 xtst`
 LDFLAGS=`pkg-config --libs x11 xtst`
 
 all: keynav
+
+clean:
+	rm *.o
 
 keynav: xdo.o keynav.o
 	gcc $(LDFLAGS) xdo.o keynav.o -o $@
