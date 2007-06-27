@@ -250,6 +250,13 @@ void parse_config_line(char *line) {
   char *commands;
   int keycode, mods;
 
+  char *comment;
+
+  /* If this line contains a '#', skip it */
+  comment = strchr(line, '#');
+  if (comment != NULL)
+    return;
+
   //printf("Config: %s\n", line);
   tokctx = line;
   keyseq = strdup(strtok_r(line, " ", &tokctx));
