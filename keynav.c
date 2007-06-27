@@ -139,7 +139,7 @@ int parse_mods(char *keyseq) {
     char *mod = mods[i];
     KeySym keysym = 0;
 
-    printf("mod: keysym for %s = %d\n", mod, keysym);
+    //printf("mod: keysym for %s = %d\n", mod, keysym);
     // from xdo_util: Map "shift" -> "Shift_L", etc.
     for (i = 0; symbol_map[i] != NULL; i+=2)
       if (!strcasecmp(mod, symbol_map[i]))
@@ -250,7 +250,7 @@ void parse_config_line(char *line) {
   char *commands;
   int keycode, mods;
 
-  printf("Config: %s\n", line);
+  //printf("Config: %s\n", line);
   tokctx = line;
   keyseq = strdup(strtok_r(line, " ", &tokctx));
   commands = strdup(tokctx);
@@ -287,7 +287,7 @@ void drawquadrants(Window win, int w, int h) {
   XAllocNamedColor(dpy, colormap, "darkred", &red, &red);
 
 # define BORDER 6
-# define PEN 6
+# define PEN 4
 
   /*left*/ clip[idx].x = 0; clip[idx].y = 0; clip[idx].width = BORDER; clip[idx].height = h;
   idx++;
@@ -320,10 +320,10 @@ void drawquadrants(Window win, int w, int h) {
   XSetForeground(dpy, gc, red.pixel);
   XDrawLine(dpy, win, gc, w/2, 0, w/2, h); // vert line
   XDrawLine(dpy, win, gc, 0, h/2, w, h/2); // horiz line
-  XDrawLine(dpy, win, gc, BORDER - PEN, BORDER - PEN, w - PEN, BORDER - PEN); //top line
-  XDrawLine(dpy, win, gc, BORDER - PEN, h - PEN, w - PEN, h - PEN); //bottom line
+  XDrawLine(dpy, win, gc, 0, BORDER - PEN, w, BORDER - PEN); //top line
+  XDrawLine(dpy, win, gc, 0, h - PEN/2, w, h - PEN/2); //bottom line
   XDrawLine(dpy, win, gc, BORDER - PEN, BORDER - PEN, BORDER - PEN, h - PEN); //left line
-  XDrawLine(dpy, win, gc, w - PEN, BORDER - PEN, w - PEN, h - PEN); //left line
+  XDrawLine(dpy, win, gc, w - PEN/2, BORDER - PEN/2, w - PEN/2, h - PEN/2); //right line
   XFlush(dpy);
 }
 
@@ -371,53 +371,75 @@ void cmd_end(char *args) {
 }
 
 void cmd_cut_up(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.h /= 2;
   update();
 }
 
 void cmd_cut_down(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.h /= 2;
   wininfo.y += wininfo.h;
   update();
 }
 
 void cmd_cut_left(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.w /= 2;
   update();
 }
 
 void cmd_cut_right(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.w /= 2;
   wininfo.x += wininfo.w;
   update();
 }
 
 void cmd_move_up(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.y -= wininfo.h;
   update();
 }
 
 void cmd_move_down(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.y += wininfo.h;
   update();
 }
 
 void cmd_move_left(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.x -= wininfo.w;
   update();
 }
 
 void cmd_move_right(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   wininfo.x += wininfo.w;
   update();
 }
 
 void cmd_warp(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2);
 }
 
 void cmd_click(char *args) {
   int button;
+
+  if (appstate & STATE_ACTIVE == 0)
+    return;
+
   button = atoi(args);
   if (button > 0)
     xdo_click(xdo, button);
@@ -426,25 +448,31 @@ void cmd_click(char *args) {
 }
 
 void cmd_doubleclick(char *args) {
+  if (appstate & STATE_ACTIVE == 0)
+    return;
   cmd_click(args);
   cmd_click(args);
 }
 
 void cmd_drag(char *args) {
   int button;
+
+  if (appstate & STATE_ACTIVE == 0)
+    return;
+
   button = atoi(args);
-  printf("Arg: %s\n", args);
+  //printf("Arg: %s\n", args);
   if (button <= 0) {
     fprintf(stderr, "Negative mouse button is invalid: %d\n", button);
     return;
   }
 
   if (appstate & STATE_DRAGGING) {
-    printf("Ending drag\n");
+    //printf("Ending drag\n");
     xdo_mouseup(xdo, button);
     appstate &= ~(STATE_DRAGGING);
   } else {
-    printf("Starting drag\n");
+    //printf("Starting drag\n");
     xdo_mousedown(xdo, button);
     appstate |= STATE_DRAGGING;
   }
@@ -452,6 +480,21 @@ void cmd_drag(char *args) {
 
 
 void update() {
+  if (wininfo.x < 0)
+    wininfo.x = 0;
+  if (wininfo.x + wininfo.w > rootattr.width)
+    wininfo.x = rootattr.width - wininfo.w;
+  if (wininfo.y < 0)
+    wininfo.y = 0;
+  if (wininfo.y + wininfo.h > rootattr.height)
+    wininfo.y = rootattr.height - wininfo.h;
+
+  if (wininfo.w <= 1 || wininfo.h <= 1) {
+    cmd_end(NULL);
+    return;
+  }
+
+
   XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
   drawquadrants(zone, wininfo.w, wininfo.h);
 }
