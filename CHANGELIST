@@ -1,0 +1,5 @@
+20070627:
+  - Config file support. Loads ~/.keynavrc
+    + The config file lets you much more than the original keynav.
+  - Uses xdo for mouse activity
+  - Some drawing fixes
