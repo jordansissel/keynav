@@ -1,3 +1,6 @@
+20070629:
+  - Correctly use defaults if no $HOME and no $HOME/.keynavrc is found (patch from wxs)
+  - Clean target is now recursive
 20070627:
   - Config file support. Loads ~/.keynavrc
     + The config file lets you much more than the original keynav.

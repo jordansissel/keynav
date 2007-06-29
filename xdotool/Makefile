@@ -5,16 +5,7 @@ CFLAGS=-g
 all: xdotool
 
 clean:
-	rm *.o
-
-#querytree: querytree.o
-	#gcc $(CFLAGS) `pkg-config --libs x11` querytree.o -o $@
-
-#querytree.o:
-	#gcc $(CFLAGS) `pkg-config --cflags x11` -c querytree.c
-
-#xdo:  xdo.c
-	#gcc -DBUILDMAIN $(CFLAGS) `pkg-config --cflags --libs x11 xtst` xdo.c -o $@
+	rm *.o || true
 
 xdo.o:
 	gcc $(CFLAGS) `pkg-config --cflags x11 xtst` -c xdo.c

@@ -5,6 +5,7 @@ all: keynav
 
 clean:
 	rm *.o || true;
+	make -C xdotool clean || true
 
 keynav: xdo.o keynav.o
 	gcc $(LDFLAGS) xdo.o keynav.o -o $@
