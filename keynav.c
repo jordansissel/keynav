@@ -358,7 +358,7 @@ void cmd_start(char *args) {
 
   appstate |= STATE_ACTIVE;
   XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-  XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+  XFlush(dpy);
 
   wininfo.x = 0;
   wininfo.y = 0;
@@ -521,9 +521,7 @@ void handle_keypress(XKeyEvent *e) {
   int i;
 
   /* Loop over known keybindings */
-  //printf("nkeys: %d\n", nkeybindings);
   for (i = 0; i < nkeybindings; i++) {
-    //printf("%d/%d vs %d/%d\n", keybindings[i].keycode, keybindings[i].mods, e->keycode, e->state);
     if ((keybindings[i].keycode == e->keycode) &&
         (keybindings[i].mods == e->state)) {
       handle_commands(keybindings[i].commands);
