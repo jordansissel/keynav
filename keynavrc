@@ -27,3 +27,9 @@ semicolon warp,end
 1 click 1
 2 click 2
 3 click 3
+
+# In case you're still holding control after the start
+ctrl+h cut-left
+ctrl+j cut-down
+ctrl+k cut-up
+ctrl+l cut-right

@@ -53,6 +53,7 @@ void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
 void cmd_start(char *args);
 void cmd_end(char *args);
+void cmd_quit(char *args); /* XXX: Is this even necessary? */
 
 void update();
 void handle_keypress(XKeyEvent *e);
@@ -80,6 +81,7 @@ struct dispatch {
 
   "start", cmd_start,
   "end", cmd_end, 
+  "quit", cmd_quit,
   NULL, NULL,
 };
 
@@ -230,6 +232,10 @@ void defaults() {
     "1 click 1",
     "2 click 2",
     "3 click 3",
+    "ctrl+h cut-left",
+    "ctrl+j cut-down",
+    "ctrl+k cut-up",
+    "ctrl+l cut-right",
     NULL,
   };
   for (i = 0; default_config[i]; i++) {
@@ -342,7 +348,6 @@ void drawquadrants(Window win, int w, int h) {
   XDrawLine(dpy, win, gc, 0, h - PEN/2, w, h - PEN/2); //bottom line
   XDrawLine(dpy, win, gc, BORDER - PEN, BORDER - PEN, BORDER - PEN, h - PEN); //left line
   XDrawLine(dpy, win, gc, w - PEN/2, BORDER - PEN/2, w - PEN/2, h - PEN/2); //right line
-  XFlush(dpy);
 }
 
 /*
@@ -358,7 +363,6 @@ void cmd_start(char *args) {
 
   appstate |= STATE_ACTIVE;
   XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-  XFlush(dpy);
 
   wininfo.x = 0;
   wininfo.y = 0;
@@ -385,7 +389,10 @@ void cmd_end(char *args) {
   appstate &= ~(STATE_ACTIVE);
   XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
-  XFlush(dpy);
+}
+
+void cmd_quit(char *args) {
+  exit(0);
 }
 
 void cmd_cut_up(char *args) {
