@@ -162,6 +162,7 @@ int xdo_window_focus(xdo_t *xdo, int wid) {
   return _is_success("XSetInputFocus", ret);
 }
 
+/* XRaiseWindow is ignored in ion3 and Gnome2. Is it even useful? */
 int xdo_window_raise(xdo_t *xdo, int wid) {
   int ret;
   ret = XRaiseWindow(xdo->xdpy, wid);

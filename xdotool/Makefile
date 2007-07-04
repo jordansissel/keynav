@@ -1,11 +1,9 @@
-# $Id$
-
-CFLAGS=-g
+#CFLAGS=-g
 
 all: xdotool
 
 clean:
-	rm *.o || true
+	rm -f *.o || true
 
 xdo.o:
 	gcc $(CFLAGS) `pkg-config --cflags x11 xtst` -c xdo.c
