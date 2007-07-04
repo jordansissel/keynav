@@ -1,3 +1,6 @@
+20070703:
+  - Include COPYRIGHT (bsd license) and a sample keynavrc in the release.
+
 20070629:
   - Correctly use defaults if no $HOME and no $HOME/.keynavrc is found (patch from wxs)
   - Clean target is now recursive

@@ -1,6 +1,9 @@
 CFLAGS=`pkg-config --cflags x11 xtst`
 LDFLAGS=`pkg-config --libs x11 xtst`
 
+OTHERFILES=README CHANGELIST COPYRIGHT \
+           keynavrc Makefile
+
 all: keynav
 
 clean:
@@ -17,7 +20,7 @@ xdo.o:
 package: clean
 	NAME=keynav-`date +%Y%m%d`; \
 	mkdir $${NAME}; \
-	rsync --exclude '.*' -av *.c xdotool CHANGELIST README Makefile $${NAME}/; \
+	rsync --exclude '.*' -av *.c $(OTHERFILES) xdotool $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \
 	rm -rf $${NAME}/
 
