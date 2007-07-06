@@ -99,6 +99,8 @@ int parse_keycode(char *keyseq) {
   char *strptr;
   char *tok;
   char *last_tok;
+  int keycode;
+  int keysym;
 
   strptr = keyseq;
   //printf("finding keycode for %s\n", keyseq);
@@ -107,7 +109,15 @@ int parse_keycode(char *keyseq) {
     strptr = NULL;
   }
 
-  return XKeysymToKeycode(dpy, XStringToKeysym(last_tok));
+  keysym = XStringToKeysym(last_tok);
+  if (keysym == NoSymbol)
+    fprintf(stderr, "No kesym found for %s\n", last_tok);
+  keycode = XKeysymToKeycode(dpy, keysym);
+  if (keycode == 0)
+    fprintf(stderr, "Unable to lookup keycode for %s\n", last_tok);
+
+  return keycode;
+
 }
 
 int parse_mods(char *keyseq) {
