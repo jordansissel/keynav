@@ -7,6 +7,13 @@
 
 #include <X11/Xlib.h>
 
+#define SEARCH_VISIBLEONLY (1L << 0)
+#define SEARCH_TITLE (1L << 1)
+#define SEARCH_CLASS (1L << 2)
+#define SEARCH_NAME (1L << 3)
+
+#define SIZE_USEHINTS (1L << 0)
+
 /* Map keysym name to actual ascii */
 typedef struct keysymcharmap {
   char *keysym;
@@ -47,10 +54,14 @@ int xdo_type(xdo_t *xdo, char *string);
 int xdo_keysequence(xdo_t *xdo, char *keysequence);
 
 int xdo_window_move(xdo_t *xdo, int wid, int x, int y);
-int xdo_window_setsize(xdo_t *xdo, int wid, int w, int h);
+int xdo_window_setsize(xdo_t *xdo, int wid, int w, int h, int flags);
 int xdo_window_focus(xdo_t *xdo, int wid);
 int xdo_window_raise(xdo_t *xdo, int wid);
+int xdo_window_get_focus(xdo_t *xdo, int *window_ret);
+
+int xdo_window_map(xdo_t *xdo, int wid);
+int xdo_window_unmap(xdo_t *xdo, int wid);
 
 /* Returns: windowlist and nwindows */
-void xdo_window_list_by_regex(xdo_t *xdo, char *regex, 
+void xdo_window_list_by_regex(xdo_t *xdo, char *regex, int flags,
                               Window **windowlist, int *nwindows);

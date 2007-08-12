@@ -3,11 +3,16 @@
  * command line interface to the xdo library
  *
  * $Id$
- * 
+ *
+ * getwindowfocus contributed by Lee Pumphret
+ *
+ * XXX: Need to use 'Window' instead of 'int' where appropriate.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
+#include <string.h>
 
 #include "xdo.h"
 
@@ -21,7 +26,10 @@ void cmd_windowmove(int argc, char **args);
 void cmd_windowfocus(int argc, char **args);
 void cmd_windowsize(int argc, char **args);
 void cmd_windowraise(int argc, char **args);
+void cmd_windowmap(int argc, char **args);
+void cmd_windowunmap(int argc, char **args);
 void cmd_search(int argc, char **args);
+void cmd_getwindowfocus(int argc, char **args);
 
 xdo_t *xdo;
 
@@ -29,18 +37,24 @@ struct dispatch {
   const char *name;
   void (*func)(int argc, char **args);
 } dispatch[] = {
-  "search", cmd_search,
-  "windowsize", cmd_windowsize,
-  "windowfocus", cmd_windowfocus,
-  "windowraise", cmd_windowraise,
-  "windowmove", cmd_windowmove,
-  "mousemove", cmd_mousemove,
-  "mousedown", cmd_mousedown,
-  "mouseup", cmd_mouseup,
-  "click", cmd_click,
-  "type", cmd_type,
-  "key", cmd_key,
-  NULL, NULL,
+  /* Query functions */
+  { "search", cmd_search, },
+  { "getwindowfocus", cmd_getwindowfocus, },
+
+  /* Action functions */
+  { "windowsize", cmd_windowsize, },
+  { "windowfocus", cmd_windowfocus, },
+  { "windowraise", cmd_windowraise, },
+  { "windowmove", cmd_windowmove, },
+  { "windowmap", cmd_windowmap, },
+  { "windowunmap", cmd_windowunmap, },
+  { "mousemove", cmd_mousemove, },
+  { "mousedown", cmd_mousedown, },
+  { "mouseup", cmd_mouseup, },
+  { "click", cmd_click, },
+  { "type", cmd_type, },
+  { "key", cmd_key, },
+  { NULL, NULL, },
 };
 
 int main(int argc, char **argv) {
@@ -53,9 +67,7 @@ int main(int argc, char **argv) {
   }
 
   cmd = *++argv; /* argv[1] */
-  argc -= 2;
-
-  argv++; /* skip 'cmd' */
+  argc -= 1; /* ignore arg0 (program name) */
 
   xdo = xdo_new(getenv("DISPLAY"));
   if (xdo == NULL) {
@@ -77,9 +89,12 @@ int main(int argc, char **argv) {
 
 void cmd_mousemove(int argc, char **args) {
   int x, y;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
 
   if (argc != 2) {
-    fprintf(stderr, "usage: move <xcoord> <ycoord>\n");
+    fprintf(stderr, "usage: %s <xcoord> <ycoord>\n", cmd);
     fprintf(stderr, "You specified the wrong number of args.\n");
     return;
   }
@@ -94,9 +109,12 @@ void cmd_mousemove(int argc, char **args) {
 
 void cmd_mousedown(int argc, char **args) {
   int button;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
 
   if (argc != 1) {
-    fprintf(stderr, "usage: mousedown <button>\n");
+    fprintf(stderr, "usage: %s <button>\n", cmd);
     fprintf(stderr, "You specified the wrong number of args.\n");
     return;
   }
@@ -110,9 +128,12 @@ void cmd_mousedown(int argc, char **args) {
 
 void cmd_mouseup(int argc, char **args) {
   int button;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
 
   if (argc != 1) {
-    fprintf(stderr, "usage: mousedown <button>\n");
+    fprintf(stderr, "usage: %s <button>\n", cmd);
     fprintf(stderr, "You specified the wrong number of args.\n");
     return;
   }
@@ -131,9 +152,12 @@ void cmd_click(int argc, char **args) {
 
 void cmd_type(int argc, char **args) {
   int i;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
 
   if (argc == 0) {
-    fprintf(stderr, "usage: type <things to type>\n");
+    fprintf(stderr, "usage: %s <things to type>\n", cmd);
     fprintf(stderr, "You specified the wrong number of args.\n");
     return;
   }
@@ -147,9 +171,12 @@ void cmd_type(int argc, char **args) {
 
 void cmd_key(int argc, char **args) {
   int i;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
 
   if (argc == 0) {
-    fprintf(stderr, "usage: move <keyseq1> [keyseq2 ... keyseqN]\n");
+    fprintf(stderr, "usage: %s <keyseq1> [keyseq2 ... keyseqN]\n", cmd);
     fprintf(stderr, "You specified the wrong number of args.\n");
     return;
   }
@@ -164,8 +191,12 @@ void cmd_key(int argc, char **args) {
 void cmd_windowmove(int argc, char **args) {
   int x, y;
   Window wid;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
+
   if (argc != 3) {
-    printf("usage: windowmove wid x y\n");
+    printf("usage: %s wid x y\n", cmd);
     return;
   }
 
@@ -180,8 +211,12 @@ void cmd_windowmove(int argc, char **args) {
 
 void cmd_windowfocus(int argc, char **args) {
   Window wid;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
+
   if (argc != 1) {
-    printf("usage: windowfocus wid\n");
+    printf("usage: %s wid\n", cmd);
     return;
   }
 
@@ -193,8 +228,12 @@ void cmd_windowfocus(int argc, char **args) {
 
 void cmd_windowraise(int argc, char **args) {
   Window wid;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
+
   if (argc != 1) {
-    printf("usage: windowraise wid\n");
+    printf("usage: %s wid\n", cmd);
     return;
   }
 
@@ -206,9 +245,35 @@ void cmd_windowraise(int argc, char **args) {
 
 void cmd_windowsize(int argc, char **args) {
   int width, height;
-  Window wid;
+  int wid;
+  int c;
+
+  int use_hints = 0;
+  struct option longopts[] = {
+    { "usehints", 0, &use_hints, 1 },
+    { 0, 0, 0, 0 },
+  };
+
+  int size_flags = 0;
+  char *cmd = *args;
+
+  while (1) {
+    int option_index;
+
+    c = getopt_long_only(argc, args, "", longopts, &option_index);
+
+    if (c == -1)
+      break;
+  }
+
+  if (use_hints)
+    size_flags |= SIZE_USEHINTS;
+
+  args += optind;
+  argc -= optind;
+
   if (argc != 3) {
-    printf("usage: windowsize wid width height\n");
+    printf("usage: %s wid width height\n", cmd);
     return;
   }
 
@@ -216,7 +281,7 @@ void cmd_windowsize(int argc, char **args) {
   width = (int)strtol(args[1], NULL, 0);
   height = (int)strtol(args[2], NULL, 0);
 
-  if (!xdo_window_setsize(xdo, wid, width, height)) {
+  if (!xdo_window_setsize(xdo, wid, width, height, size_flags)) {
     fprintf(stderr, "xdo_window_setsize reported an error\n");
   }
 }
@@ -225,17 +290,118 @@ void cmd_search(int argc, char **args) {
   Window *list;
   int nwindows;
   int i;
+  int c;
+
+  int only_visible = 0;
+  int search_title = 0;
+  int search_name = 0;
+  int search_class = 0;
+  struct option longopts[] = {
+    { "onlyvisible", 0, &only_visible, 1 },
+    { "title", 0, &search_title, 1 },
+    { "name", 0, &search_name, 1 },
+    { "class", 0, &search_class, 1 },
+    { 0, 0, 0, 0 },
+  };
+
+  int search_flags = 0;
+
+  char *cmd = *args;
+
+  while (1) {
+    int option_index;
+
+    c = getopt_long_only(argc, args, "", longopts, &option_index);
+
+    if (c == -1)
+      break;
+  }
+
+  if (only_visible)
+    search_flags |= SEARCH_VISIBLEONLY;
+  if (search_title)
+    search_flags |= SEARCH_TITLE;
+  if (search_name)
+    search_flags |= SEARCH_NAME;
+  if (search_class)
+    search_flags |= SEARCH_CLASS;
+
+  args += optind;
+  argc -= optind;
 
   if (argc != 1) {
-    printf("usage: search regex_pattern\n");
+    printf(
+    "Usage: xdotool %s "
+    "[--onlyvisible] [--title --class --name] regexp_pattern\n"
+    " --onlyvisible   matches only windows currently visible\n"
+    " --title         check regexp_pattern agains the window title\n"
+    " --class         check regexp_pattern agains the window class\n"
+    " --name          check regexp_pattern agains the window name\n"
+    "\n"
+    "* If none of --title, --class, and --name are specified,\n"
+    "the defaults are to match any of them.\n", 
+    cmd);
     return;
   }
 
-  xdo_window_list_by_regex(xdo, *args, &list, &nwindows);
-  for (i = 0; i < nwindows; i++) {
-    printf("%d\n", list[i]);
-  }
+  xdo_window_list_by_regex(xdo, *args, search_flags, &list, &nwindows);
+  /* XXX: We shouldn't assume 'Window' == 'int' here... */
+  for (i = 0; i < nwindows; i++)
+    printf("%d\n", (int)list[i]);
 
   /* Free list as it's malloc'd by xdo_window_list_by_regex */
   free(list);
+}
+
+/* Added 2007-07-28 - Lee Pumphret */
+void cmd_getwindowfocus(int argc, char **args) {
+  Window window = -1;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
+
+  if (argc != 0) {
+    printf("usage: %s\n", cmd);
+    return;
+  }
+
+  if (!xdo_window_get_focus(xdo, (int*)&window)) {
+    fprintf(stderr, "xdo_window_focus reported an error\n");
+  } else {
+    printf("%d\n", (int)window);
+  }
+}
+
+void cmd_windowmap(int argc, char **args) {
+  Window wid;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
+
+  if (argc != 1) {
+    printf("usage: %s wid\n", cmd);
+    return;
+  }
+
+  wid = (int)strtol(args[0], NULL, 0);
+  if (!xdo_window_map(xdo, wid)) {
+    fprintf(stderr, "xdo_window_map reported an error\n");
+  }
+}
+
+void cmd_windowunmap(int argc, char **args) {
+  Window wid;
+  char *cmd = *args;
+  argc -= 1;
+  args++;
+
+  if (argc != 1) {
+    printf("usage: %s wid\n", cmd);
+    return;
+  }
+
+  wid = (int)strtol(args[0], NULL, 0);
+  if (!xdo_window_unmap(xdo, wid)) {
+    fprintf(stderr, "xdo_window_unmap reported an error\n");
+  }
 }

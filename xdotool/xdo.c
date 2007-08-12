@@ -30,7 +30,8 @@ static void _xdo_get_child_windows(xdo_t *xdo, Window window,
                                    int *ntotal_windows, 
                                    int *window_list_size);
 
-static int _xdo_regex_match_window(xdo_t *xdo, Window window, regex_t *re);
+static int _xdo_regex_match_window(xdo_t *xdo, Window window, int flags, regex_t *re);
+static int _xdo_is_window_visible(xdo_t *xdo, Window wid);
 
 static int _is_success(const char *funcname, int code);
 
@@ -64,7 +65,6 @@ xdo_t* xdo_new_with_opened_display(Display *xdpy, char *display,
   xdo->xdpy = xdpy;
   xdo->close_display_when_freed = close_display_when_freed;
 
-  /* XXX: Check for NULL here */
   if (display == NULL)
     display = "unknown";
 
@@ -91,7 +91,21 @@ void xdo_free(xdo_t *xdo) {
   free(xdo);
 }
 
-void xdo_window_list_by_regex(xdo_t *xdo, char *regex,
+int xdo_window_map(xdo_t *xdo, int wid) {
+  int ret;
+  ret = XMapWindow(xdo->xdpy, wid);
+  XFlush(xdo->xdpy);
+  return _is_success("XMapWindow", ret);
+}
+
+int xdo_window_unmap(xdo_t *xdo, int wid) {
+  int ret;
+  ret = XUnmapWindow(xdo->xdpy, wid);
+  XFlush(xdo->xdpy);
+  return _is_success("XMapWindow", ret);
+}
+
+void xdo_window_list_by_regex(xdo_t *xdo, char *regex, int flags,
                               Window **windowlist, int *nwindows) {
   regex_t re;
   Window *total_window_list = NULL;
@@ -107,6 +121,15 @@ void xdo_window_list_by_regex(xdo_t *xdo, char *regex,
     return;
   }
 
+  /* Default search settings:
+   * All windows (visible and hidden) and search all text pieces
+   */
+  if ((flags & (SEARCH_TITLE | SEARCH_CLASS | SEARCH_NAME)) == 0) {
+    fprintf(stderr, "No text fields specified for regex search. \nDefaulting to"
+            " window title, class, and name searching\n");
+    flags = SEARCH_TITLE | SEARCH_CLASS | SEARCH_NAME;
+  }
+
   *nwindows = 0;
   *windowlist = malloc(matched_window_list_size * sizeof(Window));
 
@@ -115,15 +138,20 @@ void xdo_window_list_by_regex(xdo_t *xdo, char *regex,
                          &window_list_size);
   int i;
   for (i = 0; i < ntotal_windows; i++) {
-    if (_xdo_regex_match_window(xdo, total_window_list[i], &re)) {
-      (*windowlist)[*nwindows] = total_window_list[i];
-      (*nwindows)++;
+    Window wid = total_window_list[i];
+    if (flags & SEARCH_VISIBLEONLY && !_xdo_is_window_visible(xdo, wid))
+      continue;
 
-      if (matched_window_list_size == *nwindows) {
-        matched_window_list_size *= 2;
-        *windowlist = realloc(*windowlist, 
-                              matched_window_list_size * sizeof(Window));
-      }
+    if (!_xdo_regex_match_window(xdo, wid, flags, &re))
+      continue;
+
+    (*windowlist)[*nwindows] = wid;
+    (*nwindows)++;
+
+    if (matched_window_list_size == *nwindows) {
+      matched_window_list_size *= 2;
+      *windowlist = realloc(*windowlist, 
+                            matched_window_list_size * sizeof(Window));
     }
   }
 
@@ -140,17 +168,39 @@ int xdo_window_move(xdo_t *xdo, int wid, int x, int y) {
   return _is_success("XConfigureWindow", ret);
 }
 
-int xdo_window_setsize(xdo_t *xdo, int wid, int width, int height) {
+int xdo_window_setsize(xdo_t *xdo, int wid, int width, int height, int flags) {
   XWindowChanges wc;
   int ret;
-  int flags = 0;
+  int cw_flags = 0;
+
   wc.width = width;
   wc.height = height;
+
+  if (flags & SIZE_USEHINTS) {
+    XSizeHints hints;
+    long supplied_return;
+    memset(&hints, 0, sizeof(hints));
+    XGetWMNormalHints(xdo->xdpy, wid, &hints, &supplied_return);
+    if (supplied_return & PResizeInc) {
+      wc.width *= hints.width_inc;
+      wc.height *= hints.height_inc;
+    } else {
+      fprintf(stderr, "No size hints found for this window\n");
+    }
+
+    if (supplied_return & PBaseSize) {
+      wc.width += hints.base_width;
+      wc.height += hints.base_height;
+    }
+
+  }
+
   if (width > 0)
-    flags |= CWWidth;
+    cw_flags |= CWWidth;
   if (height > 0)
-    flags |= CWHeight;
-  ret = XConfigureWindow(xdo->xdpy, wid, flags, &wc);
+    cw_flags |= CWHeight;
+
+  ret = XConfigureWindow(xdo->xdpy, wid, cw_flags, &wc);
   XFlush(xdo->xdpy);
   return _is_success("XConfigureWindow", ret);
 }
@@ -203,6 +253,7 @@ int xdo_click(xdo_t *xdo, int button) {
   /* no need to flush here */
 }
 
+/* XXX: Return proper code if errors found */
 int xdo_type(xdo_t *xdo, char *string) {
   int i = 0;
   char key = '0';
@@ -224,6 +275,8 @@ int xdo_type(xdo_t *xdo, char *string) {
     /* XXX: Flush here or at the end? */
     XFlush(xdo->xdpy);
   }
+
+  return True;
 }
 
 int xdo_keysequence(xdo_t *xdo, char *keyseq) {
@@ -239,7 +292,7 @@ int xdo_keysequence(xdo_t *xdo, char *keyseq) {
 
   if (strcspn(keyseq, " \t\n.-[]{}\\|") != strlen(keyseq)) {
     fprintf(stderr, "Error: Invalid key sequence '%s'\n", keyseq);
-    return;
+    return False;
   }
 
   keys = malloc(keys_size * sizeof(int));
@@ -281,7 +334,18 @@ int xdo_keysequence(xdo_t *xdo, char *keyseq) {
     XTestFakeKeyEvent(xdo->xdpy, keys[i], False, CurrentTime);
 
   XFlush(xdo->xdpy);
+  return True;
 }
+
+/* Add by Lee Pumphret 2007-07-28
+ * Modified slightly by Jordan Sissel */
+int xdo_window_get_focus(xdo_t *xdo, int *window_ret) {
+  int ret;
+  int unused_revert_ret;
+  ret = XGetInputFocus(xdo->xdpy, (Window*)window_ret, &unused_revert_ret);
+  return _is_success("XGetInputFocus", ret);
+}
+
 
 /* Helper functions */
 static int _xdo_keycode_from_char(xdo_t *xdo, char key) {
@@ -403,11 +467,10 @@ static void _xdo_get_child_windows(xdo_t *xdo, Window window,
   XFree(children);
 }
 
-int _xdo_regex_match_window(xdo_t *xdo, Window window, regex_t *re) {
+int _xdo_regex_match_window(xdo_t *xdo, Window window, int flags, regex_t *re) {
   XWindowAttributes attr;
   XTextProperty tp;
   XClassHint classhint;
-  char *name;
   int i;
 
   XGetWindowAttributes(xdo->xdpy, window, &attr);
@@ -415,37 +478,39 @@ int _xdo_regex_match_window(xdo_t *xdo, Window window, regex_t *re) {
   /* XXX: Memory leak here according to valgrind? */
   XGetWMName(xdo->xdpy, window, &tp);
 
-  if (tp.nitems > 0) {
-    int count = 0;
-    char **list = NULL;
-    XmbTextPropertyToTextList(xdo->xdpy, &tp, &list, &count);
-    for (i = 0; i < count; i++) {
-      if (regexec(re, list[i], 0, NULL, 0) == 0) {
+  if (flags & SEARCH_TITLE) {
+    if (tp.nitems > 0) {
+      int count = 0;
+      char **list = NULL;
+      XmbTextPropertyToTextList(xdo->xdpy, &tp, &list, &count);
+      for (i = 0; i < count; i++) {
+        if (regexec(re, list[i], 0, NULL, 0) == 0) {
+          XFreeStringList(list);
+          return True;
+        }
         XFreeStringList(list);
-        return True;
       }
-      XFreeStringList(list);
     }
   }
 
   if (XGetClassHint(xdo->xdpy, window, &classhint)) {
-    if (classhint.res_name) {
+    if ((flags & SEARCH_NAME) && classhint.res_name) {
       if (regexec(re, classhint.res_name, 0, NULL, 0) == 0) {
         XFree(classhint.res_name);
         XFree(classhint.res_class);
-        return 1;
+        return True;
       }
       XFree(classhint.res_name);
     }
-    if (classhint.res_class) {
+    if ((flags & SEARCH_CLASS) && classhint.res_class) {
       if (regexec(re, classhint.res_class, 0, NULL, 0) == 0) {
         XFree(classhint.res_class);
-        return 1;
+        return True;
       }
       XFree(classhint.res_class);
     }
   }
-  return 0;
+  return False;
 }
 
 int _is_success(const char *funcname, int code) {
@@ -459,6 +524,16 @@ int _is_success(const char *funcname, int code) {
     fprintf(stderr, "%s failed: got bad window\n", funcname);
     return False;
   }
+
+  return True;
+}
+
+int _xdo_is_window_visible(xdo_t *xdo, Window wid) {
+  XWindowAttributes wattr;
+
+  XGetWindowAttributes(xdo->xdpy, wid, &wattr);
+  if (wattr.map_state != IsViewable)
+    return False;
 
   return True;
 }
