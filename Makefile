@@ -1,5 +1,5 @@
-CFLAGS=`pkg-config --cflags x11 xtst`
-LDFLAGS=`pkg-config --libs x11 xtst`
+CFLAGS=`pkg-config --cflags x11 xtst 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include`
+LDFLAGS=`pkg-config --libs x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst` 
 
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile
