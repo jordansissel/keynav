@@ -18,10 +18,18 @@ h cut-left
 j cut-down
 k cut-up
 l cut-right
+y cut-left,cut-up
+u cut-right,cut-up
+b cut-left,cut-down
+n cut-right,cut-down
 shift+h move-left
 shift+j move-down
 shift+k move-up
 shift+l move-right
+shift+y move-left,move-up
+shift+u move-right,move-up
+shift+b move-left,move-down
+shift+n move-right,move-down
 space warp,click 1,end
 semicolon warp,end
 1 click 1
@@ -34,12 +42,12 @@ ctrl+j cut-down
 ctrl+k cut-up
 ctrl+l cut-right
 
-# Cut and move by something different than 50%
-h cut-left .75
-l cut-right .75
-k cut-up .75
-j cut-down .75
-shift+h move-left .75
-shift+l move-right .75
-shift+k move-up .75
-shift+j move-down .75
+# Example of cut and move without the default values
+#h cut-left .75
+#j cut-down .75
+#k cut-up .75
+#l cut-right .75
+#shift+h move-left .50
+#shift+j move-down .50
+#shift+k move-up .50
+#shift+l move-right .50
