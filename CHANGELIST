@@ -2,6 +2,7 @@
   - Arguments for {move,cut}_{up,left,down,right} in form of percentage values.
     Default for cut is 0.5 (cut the window in half)
     Default for move is 1.0 (move the full width/height of the window)
+  - sync to xdotool-20070812
 
 20070703:
   - Include COPYRIGHT (bsd license) and a sample keynavrc in the release.
