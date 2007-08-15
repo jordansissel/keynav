@@ -33,3 +33,13 @@ ctrl+h cut-left
 ctrl+j cut-down
 ctrl+k cut-up
 ctrl+l cut-right
+
+# Cut and move by something different than 50%
+h cut-left .75
+l cut-right .75
+k cut-up .75
+j cut-down .75
+shift+h move-left .75
+shift+l move-right .75
+shift+k move-up .75
+shift+j move-down .75

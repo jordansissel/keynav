@@ -60,6 +60,8 @@ void handle_commands(char *commands);
 void parse_config();
 void parse_config_line(char *line);
 
+int percent_of(int num, char *args, float default_val);
+
 struct dispatch {
   char *command;
   void (*func)(char *args);
@@ -294,6 +296,20 @@ void parse_config_line(char *line) {
   addbinding(keycode, mods, commands);
 }
 
+int percent_of(int num, char *args, float default_val) {
+  static float precision = 100000.0;
+  float pct = 0.0;
+  int value = 0;
+
+  /* Parse a float. If this fails, assume the default value */
+  if (sscanf(args, "%f", &pct) <= 0)
+    pct = default_val;
+
+  value = (int)((num * (pct * precision)) / precision);
+  return value;
+}
+
+
 GC creategc(Window win) {
   GC gc;
   XGCValues values;
@@ -407,58 +423,60 @@ void cmd_quit(char *args) {
 void cmd_cut_up(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.h /= 2;
+  wininfo.h = percent_of(wininfo.h, args, .5);
   update();
 }
 
 void cmd_cut_down(char *args) {
+  int orig = wininfo.h;
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.h /= 2;
-  wininfo.y += wininfo.h;
+  wininfo.h = percent_of(wininfo.h, args, .5);
+  wininfo.y += orig - wininfo.h;
   update();
 }
 
 void cmd_cut_left(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.w /= 2;
+  wininfo.w = percent_of(wininfo.w, args, .5);
   update();
 }
 
 void cmd_cut_right(char *args) {
+  int orig = wininfo.w;
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.w /= 2;
-  wininfo.x += wininfo.w;
+  wininfo.w = percent_of(wininfo.w, args, .5);
+  wininfo.x += orig - wininfo.w;
   update();
 }
 
 void cmd_move_up(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.y -= wininfo.h;
+  wininfo.y -= percent_of(wininfo.h, args, 1);
   update();
 }
 
 void cmd_move_down(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.y += wininfo.h;
+  wininfo.y += percent_of(wininfo.h, args, 1);
   update();
 }
 
 void cmd_move_left(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.x -= wininfo.w;
+  wininfo.x -= percent_of(wininfo.w, args, 1);
   update();
 }
 
 void cmd_move_right(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
-  wininfo.x += wininfo.w;
+  wininfo.x += percent_of(wininfo.w, args, 1);
   update();
 }
 
@@ -559,12 +577,18 @@ void handle_commands(char *commands) {
     for (i = 0; dispatch[i].command; i++) {
       /* If this command starts with a dispatch function, call it */
       if (!strncmp(tok, dispatch[i].command, strlen(dispatch[i].command))) {
-        //printf("%s starts with %s\n", tok, dispatch[i].command);
         /* tok + len + 1 is
          * "command arg1 arg2"
          *          ^^^^^^^^^ <-- this 
          */
-        dispatch[i].func(tok + strlen(dispatch[i].command) + 1);
+
+        char *args = tok + strlen(dispatch[i].command);
+        if (*args == '\0')
+          args = "";
+        else
+          args++;
+
+        dispatch[i].func(args);
       }
     }
   }
