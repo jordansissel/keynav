@@ -5,6 +5,9 @@
   - More examples in distributed keynavrc
   - sync to xdotool-20070812
 
+20070705:
+  - Report when keysyms or keycodes cannot be looked up for whatever reason.
+
 20070703:
   - Include COPYRIGHT (bsd license) and a sample keynavrc in the release.
 

@@ -41,6 +41,10 @@ ctrl+h cut-left
 ctrl+j cut-down
 ctrl+k cut-up
 ctrl+l cut-right
+ctrl+y cut-left,cut-up
+ctrl+u cut-right,cut-up
+ctrl+b cut-left,cut-down
+ctrl+n cut-right,cut-down
 
 # Example of cut and move without the default values
 #h cut-left .75
