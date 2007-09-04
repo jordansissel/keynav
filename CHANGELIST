@@ -1,3 +1,16 @@
+20070903:
+  - Drag is now working. Problem was KeyEvent.state contains masks such as
+    | Button1Mask which is set when mouse button 1 is held, so keybindings stopped
+    | working. Ignoring Button[1-5]Mask in this value fixes the problem.
+  - Drag takes two optional arguments: a button followed by a keysequence to fire.
+    | 'drag 1 alt' will do an alt+leftclick drag.
+    | 'drag 2' will do a middleclick drag.
+  - sync to xdotool@20070903
+  - Fix a bug in parse_mods and parse_keysym where it was destructively changing the string.
+  - Fix a bug where I was using the loop iterator 'i' inside another for loop. Oops.
+  - Add to defaults my nethack-vi-style diagonal keybindings
+
+
 20070814:
   - Arguments for {move,cut}_{up,left,down,right} in form of percentage values.
     Default for cut is 0.5 (cut the window in half)

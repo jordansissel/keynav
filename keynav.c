@@ -27,6 +27,9 @@ Window zone;
 xdo_t *xdo;
 int appstate = 0;
 
+int drag_button = 0;
+char drag_modkeys[128];
+
 #define STATE_ACTIVE 0x0001 
 #define STATE_DRAGGING 0x0002
 
@@ -100,10 +103,11 @@ int parse_keycode(char *keyseq) {
   char *strptr;
   char *tok;
   char *last_tok;
+  char *dup;
   int keycode;
   int keysym;
 
-  strptr = keyseq;
+  strptr = dup = strdup(keyseq);
   //printf("finding keycode for %s\n", keyseq);
   while ((tok = strtok_r(strptr, "+", &tokctx)) != NULL) {
     last_tok = tok;
@@ -117,8 +121,8 @@ int parse_keycode(char *keyseq) {
   if (keycode == 0)
     fprintf(stderr, "Unable to lookup keycode for %s\n", last_tok);
 
+  free(dup);
   return keycode;
-
 }
 
 int parse_mods(char *keyseq) {
@@ -126,6 +130,7 @@ int parse_mods(char *keyseq) {
   char *strptr;
   char *tok;
   char *last_tok;
+  char *dup;
   char **mods  = NULL;
   int modmask = 0;
   int nmods = 0;
@@ -135,7 +140,7 @@ int parse_mods(char *keyseq) {
 
   //printf("finding mods for %s\n", keyseq);
 
-  strptr = keyseq;
+  strptr = dup = strdup(keyseq);
   while ((tok = strtok_r(strptr, "+", &tokctx)) != NULL) {
     strptr = NULL;
     //printf("mod: %s\n", tok);
@@ -147,8 +152,9 @@ int parse_mods(char *keyseq) {
     }
   }
 
-  int i;
 
+  int i = 0;
+  int j = 0;
   /* Use all but the last token as modifiers */
   for (i = 0; i < nmods; i++) {
     char *mod = mods[i];
@@ -156,11 +162,14 @@ int parse_mods(char *keyseq) {
 
     //printf("mod: keysym for %s = %d\n", mod, keysym);
     // from xdo_util: Map "shift" -> "Shift_L", etc.
-    for (i = 0; symbol_map[i] != NULL; i+=2)
-      if (!strcasecmp(mod, symbol_map[i]))
-        mod = symbol_map[i + 1];
+    for (j = 0; symbol_map[j] != NULL; j+=2) {
+      if (!strcasecmp(mod, symbol_map[j])) {
+        mod = symbol_map[j + 1];
+      }
+    }
 
     keysym = XStringToKeysym(mod);
+    //printf("%s => %d\n", mod, keysym);
     if ((keysym == XK_Shift_L) || (keysym == XK_Shift_R))
       modmask |= ShiftMask;
     if ((keysym == XK_Control_L) || (keysym == XK_Control_R))
@@ -172,6 +181,7 @@ int parse_mods(char *keyseq) {
      * Meta, Super, and Hyper? I have no idea what ModNMask these are. */
   }
 
+  free(dup);
   return modmask;
 }
 
@@ -181,12 +191,13 @@ void addbinding(int keycode, int mods, char *commands) {
     keybindings = realloc(keybindings, keybindings_size * sizeof(struct keybinding));
   }
 
+  //printf("%d/%d => %s\n", keycode, mods, commands);
+
   keybindings[nkeybindings].commands = strdup(commands);
   keybindings[nkeybindings].keycode = keycode;
   keybindings[nkeybindings].mods = mods;
   nkeybindings++;
 
-  /* We don't need to "bind" a key here unless it's for 'start' */
   if (!strcmp(commands, "start")) {
     XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
     XGrabKey(dpy, keycode, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
@@ -247,6 +258,19 @@ void defaults() {
     "ctrl+j cut-down",
     "ctrl+k cut-up",
     "ctrl+l cut-right",
+    "y cut-left,cut-up",
+    "u cut-right,cut-up",
+    "b cut-left,cut-down",
+    "n cut-right,cut-down",
+    "shift+y move-left,move-up",
+    "shift+u move-right,move-up",
+    "shift+b move-left,move-down",
+    "shift+n move-right,move-down",
+    "ctrl+y cut-left,cut-up",
+    "ctrl+u cut-right,cut-up",
+    "ctrl+b cut-left,cut-down",
+    "ctrl+n cut-right,cut-down",
+
     NULL,
   };
   for (i = 0; default_config[i]; i++) {
@@ -294,6 +318,7 @@ void parse_config_line(char *line) {
   mods = parse_mods(keyseq);
 
   addbinding(keycode, mods, commands);
+  free(keyseq);
 }
 
 int percent_of(int num, char *args, float default_val) {
@@ -412,6 +437,11 @@ void cmd_end(char *args) {
     return;
 
   appstate &= ~(STATE_ACTIVE);
+
+  /* kill drag state too */
+  if (appstate & STATE_DRAGGING)
+    cmd_drag(NULL);
+
   XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
 }
@@ -483,12 +513,20 @@ void cmd_move_right(char *args) {
 void cmd_warp(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
+  //printf("Warp\n");
   xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2);
+
+  /* Some apps (window managers) don't acknowledge a drag unless there's been
+   * some wiggle. Let's wiggle if we're dragging. */
+  if (appstate & STATE_DRAGGING) {
+    xdo_mousemove_relative(xdo, 1, 1);
+    xdo_mousemove_relative(xdo, -1, 0);
+    xdo_mousemove_relative(xdo, 0, -1);
+  }
 }
 
 void cmd_click(char *args) {
   int button;
-
   if (appstate & STATE_ACTIVE == 0)
     return;
 
@@ -512,21 +550,42 @@ void cmd_drag(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
 
-  button = atoi(args);
-  //printf("Arg: %s\n", args);
+  if (args == NULL) {
+    button = drag_button;
+  } else {
+    int count = sscanf(args, "%d %127s", &button, drag_modkeys);
+    if (count == 0) {
+      button = 1; /* Default to left mouse button */
+      drag_modkeys[0] = '\0';
+    } else if (count == 1) {
+      drag_modkeys[0] = '\0';
+    }
+
+    //printf("modkeys: %s\n", drag_modkeys);
+  }
+
   if (button <= 0) {
-    fprintf(stderr, "Negative mouse button is invalid: %d\n", button);
+    fprintf(stderr, "Negative or no mouse button given. Not valid. Button read was '%d'\n", button);
     return;
   }
 
-  if (appstate & STATE_DRAGGING) {
-    //printf("Ending drag\n");
-    xdo_mouseup(xdo, button);
+  drag_button = button;
+
+  cmd_warp(NULL);
+  if (appstate & STATE_DRAGGING) { /* End dragging */
     appstate &= ~(STATE_DRAGGING);
-  } else {
-    //printf("Starting drag\n");
-    xdo_mousedown(xdo, button);
+    xdo_mouseup(xdo, button);
+  } else { /* Start dragging */
     appstate |= STATE_DRAGGING;
+    xdo_keysequence_down(xdo, drag_modkeys);
+    //printf("down: %s\n", drag_modkeys);
+    xdo_mousedown(xdo, button);
+
+    /* Sometimes we need to move a little to tell the app we're dragging */
+    xdo_mousemove_relative(xdo, 1, 0);
+    xdo_mousemove_relative(xdo, 100, 0);
+    //xdo_mousemove_relative(xdo, 1, 0);
+    xdo_keysequence_up(xdo, drag_modkeys);
   }
 }
 
@@ -554,11 +613,20 @@ void update() {
 void handle_keypress(XKeyEvent *e) {
   int i;
 
+  /* If a mouse button is pressed (like, when we're dragging),
+   * then the 'mods' will include values like Button1Mask. 
+   * Let's remove those, as they cause breakage */
+  e->state &= ~(Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask);
+
   /* Loop over known keybindings */
   for (i = 0; i < nkeybindings; i++) {
-    if ((keybindings[i].keycode == e->keycode) &&
-        (keybindings[i].mods == e->state)) {
-      handle_commands(keybindings[i].commands);
+    //printf("e->state:%d bindmods:%d and:%d\n", e->state, keybindings[i].mods, e->state & keybindings[i].mods);
+    int keycode = keybindings[i].keycode;
+    int mods = keybindings[i].mods;
+    char *commands = keybindings[i].commands;
+    if ((keycode == e->keycode) && (mods == e->state)) {
+      //printf("Calling '%s' from %d/%d\n", commands, keycode, mods);
+      handle_commands(commands);
     }
   }
 }
@@ -566,7 +634,7 @@ void handle_keypress(XKeyEvent *e) {
 void handle_commands(char *commands) {
   char *cmdcopy;
   char *tokctx, *tok, *strptr;
-  
+
   cmdcopy = strdup(commands);
   strptr = cmdcopy;
   while ((tok = strtok_r(strptr, ",", &tokctx)) != NULL) {
@@ -589,6 +657,9 @@ void handle_commands(char *commands) {
           args++;
 
         dispatch[i].func(args);
+        //printf("App state: %d\n", appstate);
+        if (appstate & STATE_DRAGGING)
+          cmd_warp(NULL);
       }
     }
   }
@@ -620,6 +691,7 @@ int main(int argc, char **argv) {
   while (1) {
     XEvent e;
     XNextEvent(dpy, &e);
+    //printf("event type: %d\n", e.type);
     switch (e.type) {
       case KeyPress:
         handle_keypress((XKeyEvent *)&e);
