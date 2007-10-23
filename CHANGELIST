@@ -1,3 +1,6 @@
+20071023:
+  - Add support for {Super,Hyper}_{R,L} modifiers (aka Mod4Mask)
+
 20070903:
   - Drag is now working. Problem was KeyEvent.state contains masks such as
     | Button1Mask which is set when mouse button 1 is held, so keybindings stopped
