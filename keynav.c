@@ -176,9 +176,11 @@ int parse_mods(char *keyseq) {
       modmask |= ControlMask;
     if ((keysym == XK_Alt_L) || (keysym == XK_Alt_R))
       modmask |= Mod1Mask;
+    if ((keysym == XK_Super_L) || (keysym == XK_Super_R)
+        || (keysym == XK_Hyper_L) || (keysym == XK_Hyper_R))
+      modmask |= Mod4Mask;
 
-    /* XXX: What other masks do we want? 
-     * Meta, Super, and Hyper? I have no idea what ModNMask these are. */
+    /* 'xmodmap' will output the current modN:KeySym mappings */
   }
 
   free(dup);
