@@ -1,3 +1,6 @@
+20071031:
+  - Fix support when NumLock/ScrollLock/CapsLock is on.
+
 20071023:
   - Add support for {Super,Hyper}_{R,L} modifiers (aka Mod4Mask)
 

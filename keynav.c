@@ -203,6 +203,8 @@ void addbinding(int keycode, int mods, char *commands) {
   if (!strcmp(commands, "start")) {
     XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
     XGrabKey(dpy, keycode, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, keycode, mods | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, keycode, mods | LockMask | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
   }
 }
 
@@ -619,6 +621,7 @@ void handle_keypress(XKeyEvent *e) {
    * then the 'mods' will include values like Button1Mask. 
    * Let's remove those, as they cause breakage */
   e->state &= ~(Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask);
+  e->state &= ~(LockMask | Mod2Mask);
 
   /* Loop over known keybindings */
   for (i = 0; i < nkeybindings; i++) {
