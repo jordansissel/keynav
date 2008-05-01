@@ -1,4 +1,4 @@
-CFLAGS+=-Wall
+CFLAGS+= -std=c99 -pedantic -Wall -W -Wno-missing-field-initializers -Wundef -Wendif-labels -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-align -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wdisabled-optimization -O2 -pipe
 
 DEFAULT_LIBS=-L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst
 DEFAULT_INC=-I/usr/X11R6/include -I/usr/local/include

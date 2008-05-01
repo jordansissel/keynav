@@ -213,6 +213,8 @@ void parse_config() {
 
   keybindings = malloc(keybindings_size * sizeof(struct keybinding));
 
+  defaults();
+
   homedir = getenv("HOME");
 
   if (homedir != NULL) {
@@ -233,8 +235,7 @@ void parse_config() {
       return;
     }
   }
-  fprintf(stderr, "No ~/.keynavrc found. Using defaults.\n");
-  defaults();
+  fprintf(stderr, "No ~/.keynavrc found.\n");
 }
 
 void defaults() {
@@ -301,10 +302,10 @@ void parse_config_line(char *line) {
 
   char *comment;
 
-  /* If this line contains a '#', skip it */
+  /* Ignore everything after a '#' */
   comment = strchr(line, '#');
   if (comment != NULL)
-    return;
+    *comment = '\0';
 
   /* Ignore leading whitespace */
   while (*line == ' ')
@@ -318,11 +319,22 @@ void parse_config_line(char *line) {
   keyseq = strdup(strtok_r(line, " ", &tokctx));
   commands = strdup(tokctx);
 
-  keycode = parse_keycode(keyseq);
-  mods = parse_mods(keyseq);
+  if (strcmp(keyseq, "clear") == 0) {
+    /* Reset keybindings */
+    free(keybindings);
+    nkeybindings = 0;
+    keybindings_size = 10;
+    keybindings = malloc(keybindings_size * sizeof(struct keybinding));
+  }
+  else {
+    keycode = parse_keycode(keyseq);
+    mods = parse_mods(keyseq);
 
-  addbinding(keycode, mods, commands);
+    addbinding(keycode, mods, commands);
+  }
+
   free(keyseq);
+  free(commands);
 }
 
 int percent_of(int num, char *args, float default_val) {
@@ -333,6 +345,9 @@ int percent_of(int num, char *args, float default_val) {
   /* Parse a float. If this fails, assume the default value */
   if (sscanf(args, "%f", &pct) <= 0)
     pct = default_val;
+
+  if (pct > 1.0)
+    return (int)pct;
 
   value = (int)((num * (pct * precision)) / precision);
   return value;
@@ -624,7 +639,7 @@ void handle_keypress(XKeyEvent *e) {
   e->state &= ~(LockMask | Mod2Mask);
 
   /* Loop over known keybindings */
-  for (i = 0; i < nkeybindings; i++) {
+  for (i = nkeybindings - 1; i >= 0; i--) {
     //printf("e->state:%d bindmods:%d and:%d\n", e->state, keybindings[i].mods, e->state & keybindings[i].mods);
     int keycode = keybindings[i].keycode;
     int mods = keybindings[i].mods;

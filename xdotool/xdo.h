@@ -16,7 +16,7 @@
 
 /* Map keysym name to actual ascii */
 typedef struct keysymcharmap {
-  char *keysym;
+  const char *keysym;
   char key;
 } keysymcharmap_t;
 
@@ -39,7 +39,7 @@ typedef struct xdo {
 
 
 xdo_t* xdo_new(char *display);
-xdo_t* xdo_new_with_opened_display(Display *xdpy, char *display,
+xdo_t* xdo_new_with_opened_display(Display *xdpy, const char *display,
                                    int close_display_when_freed);
 void xdo_free(xdo_t *xdo);
 

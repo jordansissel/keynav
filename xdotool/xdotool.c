@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
+#include <strings.h>
+
 
 #include "xdo.h"
 
