@@ -1,3 +1,16 @@
+20080501:
+  Patches from Mark (20080501)
+   * ~/.keynavrc extends defaults rather than replacing them
+   * "clear" in ~/.keynavrc resets keybindings
+   * comments can appear anywhere on a line
+
+  Patches from Eric (20080501)
+   * If the move or size value is greater than 1.0, then assume it is an absolute value.
+
+  Patches from Lukas Mai (20080429)
+   * Fixes a few minor bugs
+   * Clean up to compile without most warnings when -pendantic and -Wall are enabled.
+
 20071031:
   - Fix support when NumLock/ScrollLock/CapsLock is on.
 
