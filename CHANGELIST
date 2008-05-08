@@ -1,3 +1,9 @@
+20080508:
+  Bug fix:
+    If you tried to override an existing key binding, it would add a 2nd
+    binding for that key instead of actually overriding it.
+  Reported by Tim Schumacher.
+
 20080501:
   Patches from Mark (20080501)
    * ~/.keynavrc extends defaults rather than replacing them
