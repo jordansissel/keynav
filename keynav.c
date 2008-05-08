@@ -197,10 +197,10 @@ void addbinding(int keycode, int mods, char *commands) {
 
   // Check if we already have a binding for this, if so, override it.
   for (i = 0; i <= nkeybindings; i++) {
-    if (keybindings[i].keycode = keycode
-        && keybindings[i].mods = mods) {
+    if (keybindings[i].keycode == keycode
+        && keybindings[i].mods == mods) {
       free(keybindings[i].commands);
-      keybindings[i].commands = strdup(commands)
+      keybindings[i].commands = strdup(commands);
       return;
     }
   }
