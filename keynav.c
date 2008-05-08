@@ -188,12 +188,22 @@ int parse_mods(char *keyseq) {
 }
 
 void addbinding(int keycode, int mods, char *commands) {
+  int i;
+
   if (nkeybindings == keybindings_size) {
     keybindings_size *= 2;
     keybindings = realloc(keybindings, keybindings_size * sizeof(struct keybinding));
   }
 
-  //printf("%d/%d => %s\n", keycode, mods, commands);
+  // Check if we already have a binding for this, if so, override it.
+  for (i = 0; i <= nkeybindings; i++) {
+    if (keybindings[i].keycode = keycode
+        && keybindings[i].mods = mods) {
+      free(keybindings[i].commands);
+      keybindings[i].commands = strdup(commands)
+      return;
+    }
+  }
 
   keybindings[nkeybindings].commands = strdup(commands);
   keybindings[nkeybindings].keycode = keycode;
