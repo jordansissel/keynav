@@ -1,3 +1,23 @@
+20080509:
+  Feature request: Grid support.
+  * New command: 'grid NxM' N and M are row and columns, respectively.
+    You can divide the screen into any number of rows and columns.
+    The default is 2x2.
+  * New command: 'cell-select N' or 'cell-select NxM'
+    With this command you can select a specific cell to zoom to.
+    Usage: cell-select N
+      Selects the Nth cell, counting from top left to bottom right. 
+      The order of a 3x3 grid would be:
+        1 2 3
+        4 5 6
+        7 8 9
+    Usage: cell-select NxM
+      Selects the specific cell at NxM. '2x2' will select row 2 column 2.
+
+  Other important changes:
+  - Whitespace before command names works now.
+  - Added a pile of new examples in keynavrc.
+
 20080508:
   Bug fix:
     If you tried to override an existing key binding, it would add a 2nd
