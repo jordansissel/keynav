@@ -38,6 +38,10 @@ struct wininfo {
   int y;
   int w;
   int h;
+  int grid_x;
+  int grid_y;
+  int border_thickness;
+  int pen_size;
 } wininfo;
 
 void defaults();
@@ -53,11 +57,14 @@ void cmd_warp(char *args);
 void cmd_click(char *args);
 void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
+void cmd_grid(char *args);
+void cmd_cell_select(char *args);
 void cmd_start(char *args);
 void cmd_end(char *args);
 void cmd_quit(char *args); /* XXX: Is this even necessary? */
 
 void update();
+void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *clip);
 void handle_keypress(XKeyEvent *e);
 void handle_commands(char *commands);
 void parse_config();
@@ -78,11 +85,17 @@ struct dispatch {
   "move-left", cmd_move_left,
   "move-right", cmd_move_right,
 
+  // Grid commands
+  "grid", cmd_grid,
+  "cell-select", cmd_cell_select,
+
+  // Mouse activity
   "warp", cmd_warp,
   "click", cmd_click,     
   "doubleclick", cmd_doubleclick,
   "drag", cmd_drag,
 
+  // Other commands.
   "start", cmd_start,
   "end", cmd_end, 
   "quit", cmd_quit,
@@ -371,68 +384,103 @@ GC creategc(Window win) {
   gc = XCreateGC(dpy, win, 0, &values);
   XSetForeground(dpy, gc, BlackPixel(dpy, 0));
   XSetBackground(dpy, gc, WhitePixel(dpy, 0));
-  XSetLineAttributes(dpy, gc, 4, LineSolid, CapButt, JoinBevel);
   XSetFillStyle(dpy, gc, FillSolid);
 
   return gc;
 }
 
-void drawquadrants(Window win, int w, int h) {
+void drawgrid(Window win, struct wininfo *info) {
   GC gc;
-  XRectangle clip[20];
+  XRectangle clip[30];
   int idx = 0;
   Colormap colormap;
-  XColor red;
+  XColor red, unused_xcolor;
+  XColor white;
+  int w = info->w;
+  int h = info->h;
+  int cell_width;
+  int cell_height;
+  int i;
 
   gc = creategc(win);
   colormap = DefaultColormap(dpy, 0);
 
-  XAllocNamedColor(dpy, colormap, "darkred", &red, &red);
+  XAllocNamedColor(dpy, colormap, "darkred", &red, &unused_xcolor);
+  XSetLineAttributes(dpy, gc, info->pen_size, LineSolid, CapButt, JoinBevel);
 
-# define BORDER 6
-# define PEN 4
+  // Fill it red.
+  XSetForeground(dpy, gc, red.pixel);
+  XFillRectangle(dpy, win, gc, 0, 0, w, h);
 
-  /*left*/ clip[idx].x = 0; clip[idx].y = 0; clip[idx].width = BORDER; clip[idx].height = h;
+  // Draw white lines.
+  XSetForeground(dpy, gc, WhitePixel(dpy, 0));
+
+
+  /*left*/ 
+  clip[idx].x = 0;
+  clip[idx].y = 0;
+  clip[idx].width = info->border_thickness;
+  clip[idx].height = h;
   idx++;
-  /*right*/ clip[idx].x = w-BORDER; clip[idx].y = 0; clip[idx].width = BORDER; clip[idx].height = h;
+
+  /*right*/
+  clip[idx].x = w - info->border_thickness;
+  clip[idx].y = 0;
+  clip[idx].width = info->border_thickness;
+  clip[idx].height = h;
   idx++;
-  /*top*/ clip[idx].x = 0; clip[idx].y = 0; clip[idx].width = w; clip[idx].height = BORDER;
+
+  /*top*/
+  clip[idx].x = 0;
+  clip[idx].y = 0;
+  clip[idx].width = w;
+  clip[idx].height = info->border_thickness;
   idx++;
-  /*bottom*/ clip[idx].x = 0; clip[idx].y = h-BORDER; clip[idx].width = w; clip[idx].height = BORDER;
+
+  /*bottom*/
+  clip[idx].x = 0;
+  clip[idx].y = h - info->border_thickness;
+  clip[idx].width = w;
+  clip[idx].height = info->border_thickness;
   idx++;
-  /*horiz*/
-  clip[idx].x = 0; clip[idx].y = h/2 - BORDER/2;
-  clip[idx].width = w; clip[idx].height = BORDER;
-  idx++;
-  /*vert*/
-  clip[idx].x = w/2 - BORDER/2; clip[idx].y = 0;
-  clip[idx].width = BORDER; clip[idx].height = h;
-  idx++;
+  
+  cell_width = (w / info->grid_y);
+  cell_height = (h / info->grid_x);
+
+  /* clip vertically */
+  for (i = 1; i < info->grid_y; i++) {
+    clip[idx].x = cell_width * i - (info->border_thickness / 2); 
+    clip[idx].y = 0;
+    clip[idx].width = info->border_thickness;
+    clip[idx].height = h;
+    idx++;
+  }
+
+  /* clip horizontally */
+  for (i = 1; i < info->grid_x; i++) {
+    clip[idx].x = 0;
+    clip[idx].y = cell_height * i - (info->border_thickness / 2);
+    clip[idx].width = w;
+    clip[idx].height = info->border_thickness;
+    idx++;
+  }
 
   XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
 
 #define CUTSIZE 4
+  /* Cut out a hole in the center */
   clip[idx].x = (w/2 - (CUTSIZE/2));
   clip[idx].y = (h/2 - (CUTSIZE/2));
   clip[idx].width = CUTSIZE;
   clip[idx].height = CUTSIZE;
   idx++;
-
   XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
 
-  XSetForeground(dpy, gc, red.pixel);
-  XDrawLine(dpy, win, gc, w/2, 0, w/2, h); // vert line
-  XDrawLine(dpy, win, gc, 0, h/2, w, h/2); // horiz line
-  XDrawLine(dpy, win, gc, 0, BORDER - PEN, w, BORDER - PEN); //top line
-  XDrawLine(dpy, win, gc, 0, h - PEN/2, w, h - PEN/2); //bottom line
-  XDrawLine(dpy, win, gc, BORDER - PEN, BORDER - PEN, BORDER - PEN, h - PEN); //left line
-  XDrawLine(dpy, win, gc, w - PEN/2, BORDER - PEN/2, w - PEN/2, h - PEN/2); //right line
-}
+  for (i = 0; i < idx; i++) {
+    drawborderline(info, win, gc, &(clip[i]));
+  }
 
-/*
- * move/cut window
- * drawquadrants again
- */
+}
 
 void cmd_start(char *args) {
   XSetWindowAttributes winattr;
@@ -448,6 +496,13 @@ void cmd_start(char *args) {
   wininfo.w = rootattr.width;
   wininfo.h = rootattr.height;
 
+  /* Default start with 4 cells, 2x2 */
+  wininfo.grid_x = 2;
+  wininfo.grid_y = 2;
+
+  wininfo.border_thickness = 5;
+  wininfo.pen_size = 1;
+
   zone = XCreateSimpleWindow(dpy, root, wininfo.x, wininfo.y, 
                              wininfo.w, wininfo.h, 0, 
                              BlackPixel(dpy, 0), WhitePixel(dpy, 0));
@@ -455,10 +510,9 @@ void cmd_start(char *args) {
   /* Tell the window manager not to manage us */
   winattr.override_redirect = 1;
   XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
-
-  drawquadrants(zone, wininfo.w, wininfo.h);
+  XSelectInput(dpy, zone, StructureNotifyMask);
+  update();
   XMapWindow(dpy, zone);
-  drawquadrants(zone, wininfo.w, wininfo.h);
 }
 
 void cmd_end(char *args) {
@@ -618,6 +672,62 @@ void cmd_drag(char *args) {
   }
 }
 
+void cmd_grid(char *args) {
+  int grid_x, grid_y;
+
+  // Try to parse 'NxN' where N is a number.
+  if (sscanf(args, "%dx%d", &grid_x, &grid_y) <= 0) {
+    // Otherwise, try parsing a number.
+    grid_x = grid_y = atoi(args);
+  }
+
+  if (grid_x <= 0 || grid_y <= 0) {
+    fprintf(stderr, "Invalid grid segmentation: %dx%d\n", grid_x, grid_y);
+    fprintf(stderr, "Grid x and y must both be greater than 0.\n");
+    return;
+  }
+
+  wininfo.grid_x = grid_x;
+  wininfo.grid_y = grid_y;
+  update();
+}
+
+void cmd_cell_select(char *args) {
+  int x, y, z;
+  int cell_width, cell_height;
+  x = y = z = 0;
+
+  // Try to parse 'NxM' where N and M are a number.
+  if (sscanf(args, "%dx%d", &x, &y) < 2) {
+    // Otherwise, try parsing just number.
+    z = atoi(args);
+  }
+
+  // if z > 0, then this means we said "cell-select N"
+  if (z > 0) {
+    x = (z % wininfo.grid_x);
+    y = (z / wininfo.grid_y);
+  }
+
+  if (x <= 0 && y <= 0) {
+    fprintf(stderr, "Cell number cannot be zero or negative. I was given"
+            "x=%d and y=%d\n", x, y);
+    return;
+  }
+
+  if (x > wininfo.grid_x && y > wininfo.grid_y) {
+    fprintf(stderr, "The active grid is %dx%d, and you selected %dx%d which "
+            "does not exist.\n", wininfo.grid_x, wininfo.grid_y, x, y);
+    return;
+  }
+
+  // else, then we said cell-select NxM
+  wininfo.w = wininfo.w / wininfo.grid_x;
+  wininfo.h = wininfo.h / wininfo.grid_y;
+  wininfo.x = wininfo.x + (wininfo.w * (x - 1));
+  wininfo.y = wininfo.y + (wininfo.h * (y - 1));
+  update();
+}
 
 void update() {
   if (wininfo.x < 0)
@@ -634,9 +744,28 @@ void update() {
     return;
   }
 
-
   XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
-  drawquadrants(zone, wininfo.w, wininfo.h);
+
+  /* XXX: If I don't call drawgrid here twice, sometimes it fails to paint
+   * properly.  I haven't put any time investigating why. */
+  drawgrid(zone, &wininfo);
+  drawgrid(zone, &wininfo);
+}
+
+void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *rect) {
+  int penoffset = ((info->border_thickness / 2) - (info->pen_size / 2));
+  XDrawLine(dpy, win, gc,
+            (rect->x + (rect->width / 2)),
+            (rect->y + penoffset),
+            (rect->x + (rect->width / 2)),
+            ((rect->y + rect->height) - (penoffset*2))
+           );
+  XDrawLine(dpy, win, gc,
+            (rect->x + penoffset),
+            (rect->y + (rect->height / 2)),
+            (rect->x + rect->width - penoffset),
+            (rect->y + (rect->height / 2))
+           );
 }
 
 void handle_keypress(XKeyEvent *e) {
@@ -669,10 +798,21 @@ void handle_commands(char *commands) {
   strptr = cmdcopy;
   while ((tok = strtok_r(strptr, ",", &tokctx)) != NULL) {
     int i;
+
+    /* Ignore leading whitespace */
+    while (*tok == ' ' || *tok == '\t')
+      tok++;
     //printf("cmd: %s\n", tok);
 
     strptr = NULL;
     for (i = 0; dispatch[i].command; i++) {
+
+      /* XXX: This approach means we can't have one command be a subset of
+       * another. For example, 'grid' and 'grid-foo' will fail because when you
+       * use 'grid-foo' it'll match 'grid' first. 
+       * I don't care about this yet.
+       */
+
       /* If this command starts with a dispatch function, call it */
       if (!strncmp(tok, dispatch[i].command, strlen(dispatch[i].command))) {
         /* tok + len + 1 is
@@ -721,13 +861,24 @@ int main(int argc, char **argv) {
   while (1) {
     XEvent e;
     XNextEvent(dpy, &e);
-    //printf("event type: %d\n", e.type);
     switch (e.type) {
       case KeyPress:
         handle_keypress((XKeyEvent *)&e);
         break;
+
+      // Map and Configure events mean the window was changed or is now mapped.
+      case MapNotify:
+      case ConfigureNotify:
+        update();
+        break;
+
+      // Ignorable events.
       case KeyRelease:
+      case DestroyNotify:
+      case UnmapNotify:
+        break;
       default:
+        //printf("Event: %d\n", e.type);
         break;
     }
   }
