@@ -1,3 +1,7 @@
+20080521:
+  Minor unimportant release:
+  - Sync xdotool library to 20080521.
+
 20080509:
   Feature request: Grid support.
   * New command: 'grid NxM' N and M are row and columns, respectively.
