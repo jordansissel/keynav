@@ -55,3 +55,27 @@ ctrl+n cut-right,cut-down
 #shift+j move-down .50
 #shift+k move-up .50
 #shift+l move-right .50
+
+# Example using a 2-row, 3-column grid, 
+# mapped to Insert/Home/PageUp/etc...
+#6 grid 2x3
+#Insert cell-select 1x1
+#Home cell-select 1x2
+#Prior cell-select 1x3   # PageUp
+#Delete cell-select 2x1
+#End cell-select 2x2
+#Next cell-select 2x3   # PageDown
+
+# Example using a 3x3 grid with nethack-vi keys
+#ctrl+semicolon start, grid 3x3
+#h cell-select 2x1      # left
+#j cell-select 3x2      # down
+#k cell-select 1x2      # up
+#l cell-select 2x3      # right
+#y cell-select 1x1      # up-left
+#u cell-select 1x3      # up-right
+#b cell-select 3x1      # down-left
+#n cell-select 3x3      # down-right
+#period cell-select 2x2 # center
+
+

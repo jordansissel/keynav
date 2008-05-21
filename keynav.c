@@ -467,7 +467,7 @@ void drawgrid(Window win, struct wininfo *info) {
 
   XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
 
-#define CUTSIZE 4
+#define CUTSIZE 5
   /* Cut out a hole in the center */
   clip[idx].x = (w/2 - (CUTSIZE/2));
   clip[idx].y = (h/2 - (CUTSIZE/2));
@@ -705,8 +705,15 @@ void cmd_cell_select(char *args) {
 
   // if z > 0, then this means we said "cell-select N"
   if (z > 0) {
-    x = (z % wininfo.grid_x);
-    y = (z / wininfo.grid_y);
+    double dx = (double)z / (double)wininfo.grid_y;
+    x = (z / wininfo.grid_y);
+    if ( (double)x != dx ) {
+      x++;
+    }
+    y = (z % wininfo.grid_y);
+    if ( 0 == y ) {
+      y = wininfo.grid_y;
+    }
   }
 
   if (x <= 0 && y <= 0) {
@@ -722,14 +729,19 @@ void cmd_cell_select(char *args) {
   }
 
   // else, then we said cell-select NxM
-  wininfo.w = wininfo.w / wininfo.grid_x;
-  wininfo.h = wininfo.h / wininfo.grid_y;
-  wininfo.x = wininfo.x + (wininfo.w * (x - 1));
-  wininfo.y = wininfo.y + (wininfo.h * (y - 1));
+  wininfo.w = wininfo.w / wininfo.grid_y;
+  wininfo.h = wininfo.h / wininfo.grid_x;
+  wininfo.x = wininfo.x + (wininfo.w * (y - 1));
+  wininfo.y = wininfo.y + (wininfo.h * (x - 1));
   update();
 }
 
 void update() {
+
+  if ( ! appstate ) {
+    return;
+  }
+
   if (wininfo.x < 0)
     wininfo.x = 0;
   if (wininfo.x + wininfo.w > rootattr.width)
@@ -798,6 +810,7 @@ void handle_commands(char *commands) {
   strptr = cmdcopy;
   while ((tok = strtok_r(strptr, ",", &tokctx)) != NULL) {
     int i;
+    int found = 0;
 
     /* Ignore leading whitespace */
     while (*tok == ' ' || *tok == '\t')
@@ -826,12 +839,16 @@ void handle_commands(char *commands) {
         else
           args++;
 
+        found = 1;
         dispatch[i].func(args);
         //printf("App state: %d\n", appstate);
         if (appstate & STATE_DRAGGING)
           cmd_warp(NULL);
       }
     }
+
+    if (!found)
+      fprintf(stderr, "No such command: '%s'\n", tok);
   }
   free(cmdcopy);
 }
