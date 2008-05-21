@@ -98,14 +98,14 @@ void xdo_free(xdo_t *xdo) {
   free(xdo);
 }
 
-int xdo_window_map(xdo_t *xdo, int wid) {
+int xdo_window_map(xdo_t *xdo, Window wid) {
   int ret;
   ret = XMapWindow(xdo->xdpy, wid);
   XFlush(xdo->xdpy);
   return _is_success("XMapWindow", ret);
 }
 
-int xdo_window_unmap(xdo_t *xdo, int wid) {
+int xdo_window_unmap(xdo_t *xdo, Window wid) {
   int ret;
   ret = XUnmapWindow(xdo->xdpy, wid);
   XFlush(xdo->xdpy);
@@ -165,7 +165,7 @@ void xdo_window_list_by_regex(xdo_t *xdo, char *regex, int flags,
   regfree(&re);
 }
 
-int xdo_window_move(xdo_t *xdo, int wid, int x, int y) {
+int xdo_window_move(xdo_t *xdo, Window wid, int x, int y) {
   XWindowChanges wc;
   int ret;
   wc.x = x;
@@ -175,7 +175,7 @@ int xdo_window_move(xdo_t *xdo, int wid, int x, int y) {
   return _is_success("XConfigureWindow", ret);
 }
 
-int xdo_window_setsize(xdo_t *xdo, int wid, int width, int height, int flags) {
+int xdo_window_setsize(xdo_t *xdo, Window wid, int width, int height, int flags) {
   XWindowChanges wc;
   int ret;
   int cw_flags = 0;
@@ -212,7 +212,7 @@ int xdo_window_setsize(xdo_t *xdo, int wid, int width, int height, int flags) {
   return _is_success("XConfigureWindow", ret);
 }
 
-int xdo_window_focus(xdo_t *xdo, int wid) {
+int xdo_window_focus(xdo_t *xdo, Window wid) {
   int ret;
   ret = XSetInputFocus(xdo->xdpy, wid, RevertToParent, CurrentTime);
   XFlush(xdo->xdpy);
@@ -220,7 +220,7 @@ int xdo_window_focus(xdo_t *xdo, int wid) {
 }
 
 /* XRaiseWindow is ignored in ion3 and Gnome2. Is it even useful? */
-int xdo_window_raise(xdo_t *xdo, int wid) {
+int xdo_window_raise(xdo_t *xdo, Window wid) {
   int ret;
   ret = XRaiseWindow(xdo->xdpy, wid);
   XFlush(xdo->xdpy);
@@ -330,10 +330,10 @@ int xdo_keysequence(xdo_t *xdo, char *keyseq) {
 
 /* Add by Lee Pumphret 2007-07-28
  * Modified slightly by Jordan Sissel */
-int xdo_window_get_focus(xdo_t *xdo, int *window_ret) {
+int xdo_window_get_focus(xdo_t *xdo, Window *window_ret) {
   int ret;
   int unused_revert_ret;
-  ret = XGetInputFocus(xdo->xdpy, (Window*)window_ret, &unused_revert_ret);
+  ret = XGetInputFocus(xdo->xdpy, window_ret, &unused_revert_ret);
   return _is_success("XGetInputFocus", ret);
 }
 

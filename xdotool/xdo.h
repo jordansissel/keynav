@@ -55,14 +55,14 @@ int xdo_keysequence(xdo_t *xdo, char *keysequence);
 int xdo_keysequence_up(xdo_t *xdo, char *keysequence);
 int xdo_keysequence_down(xdo_t *xdo, char *keysequence);
 
-int xdo_window_move(xdo_t *xdo, int wid, int x, int y);
-int xdo_window_setsize(xdo_t *xdo, int wid, int w, int h, int flags);
-int xdo_window_focus(xdo_t *xdo, int wid);
-int xdo_window_raise(xdo_t *xdo, int wid);
-int xdo_window_get_focus(xdo_t *xdo, int *window_ret);
+int xdo_window_move(xdo_t *xdo, Window wid, int x, int y);
+int xdo_window_setsize(xdo_t *xdo, Window wid, int w, int h, int flags);
+int xdo_window_focus(xdo_t *xdo, Window wid);
+int xdo_window_raise(xdo_t *xdo, Window wid);
+int xdo_window_get_focus(xdo_t *xdo, Window *window_ret);
 
-int xdo_window_map(xdo_t *xdo, int wid);
-int xdo_window_unmap(xdo_t *xdo, int wid);
+int xdo_window_map(xdo_t *xdo, Window wid);
+int xdo_window_unmap(xdo_t *xdo, Window wid);
 
 /* Returns: windowlist and nwindows */
 void xdo_window_list_by_regex(xdo_t *xdo, char *regex, int flags,
