@@ -1,6 +1,11 @@
-20080521:
-  Minor unimportant release:
+20080522:
   - Sync xdotool library to 20080521.
+  - Added 2 grid examples to keynavrc
+  - Applied patches from Richard Kolkovich
+    + Fix backwards math when calculating Nth cell when using 'cell-select N'
+    + Fix dislexia when doing 'cell-select NxM'
+    + Abort update() calls when app is inactive.
+  - Now warns you if you try to execute an invalid command.
 
 20080509:
   Feature request: Grid support.

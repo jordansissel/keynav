@@ -19,7 +19,8 @@ xdo.o:
 	cp xdotool/xdo.o .
 
 package: clean
-	NAME=keynav-`date +%Y%m%d`; \
+	#NAME=keynav-`date +%Y%m%d`; \
+	NAME=keynav-20080522; \
 	mkdir $${NAME}; \
 	rsync --exclude '.*' -av *.c $(OTHERFILES) xdotool $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \
