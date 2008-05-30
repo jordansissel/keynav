@@ -267,6 +267,7 @@ void defaults() {
   char *default_config[] = {
     "ctrl+semicolon start",
     "Escape end",
+    "ctrl+bracketleft end", /* for vi people who use */
     "h cut-left",
     "j cut-down",
     "k cut-up",
