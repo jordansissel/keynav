@@ -39,6 +39,8 @@ static int _xdo_keysequence_to_keycode_list(xdo_t *xdo, char *keyseq, int **keys
 static int _xdo_keysequence_do(xdo_t *xdo, char *keyseq, int pressed);
 static int _xdo_regex_match_window(xdo_t *xdo, Window window, int flags, regex_t *re);
 static int _xdo_is_window_visible(xdo_t *xdo, Window wid);
+static unsigned char * _xdo_getwinprop(xdo_t *xdo, Window window, Atom atom,
+                                       long *nitems, Atom *type, int *size);
 
 static int _is_success(const char *funcname, int code);
 
@@ -135,20 +137,19 @@ void xdo_window_list_by_regex(xdo_t *xdo, char *regex, int flags,
   if ((flags & (SEARCH_TITLE | SEARCH_CLASS | SEARCH_NAME)) == 0) {
     fprintf(stderr, "No text fields specified for regex search. \nDefaulting to"
             " window title, class, and name searching\n");
-    flags = SEARCH_TITLE | SEARCH_CLASS | SEARCH_NAME;
+    flags |= SEARCH_TITLE | SEARCH_CLASS | SEARCH_NAME;
   }
 
   *nwindows = 0;
   *windowlist = malloc(matched_window_list_size * sizeof(Window));
 
-  _xdo_get_child_windows(xdo, XDefaultRootWindow(xdo->xdpy), 
+  _xdo_get_child_windows(xdo, RootWindow(xdo->xdpy, 0),
                          &total_window_list, &ntotal_windows,
                          &window_list_size);
   for (i = 0; i < ntotal_windows; i++) {
     Window wid = total_window_list[i];
     if (flags & SEARCH_VISIBLEONLY && !_xdo_is_window_visible(xdo, wid))
       continue;
-
     if (!_xdo_regex_match_window(xdo, wid, flags, &re))
       continue;
 
@@ -217,6 +218,179 @@ int xdo_window_focus(xdo_t *xdo, Window wid) {
   ret = XSetInputFocus(xdo->xdpy, wid, RevertToParent, CurrentTime);
   XFlush(xdo->xdpy);
   return _is_success("XSetInputFocus", ret);
+}
+
+int xdo_window_activate(xdo_t *xdo, Window wid) {
+  int ret;
+  long desktop = 0;
+  XEvent xev;
+  XWindowAttributes wattr;
+
+  /* If this window is on another desktop, let's go to that desktop first */
+  xdo_get_desktop_for_window(xdo, wid, &desktop);
+  xdo_set_current_desktop(xdo, desktop);
+
+  xev.type = ClientMessage;
+  xev.xclient.display = xdo->xdpy;
+  xev.xclient.window = wid;
+  xev.xclient.message_type = XInternAtom(xdo->xdpy, "_NET_ACTIVE_WINDOW", False);
+  xev.xclient.format = 32;
+  xev.xclient.data.l[0] = 2; /* 2 == Message from a window pager */
+  xev.xclient.data.l[1] = CurrentTime;
+  xev.xclient.data.l[2] = 0;
+
+  XGetWindowAttributes(xdo->xdpy, wid, &wattr);
+  ret = XSendEvent(xdo->xdpy, wattr.screen->root, False,
+                   SubstructureNotifyMask | SubstructureRedirectMask,
+                   &xev);
+
+  return _is_success("XSendEvent[EWMH:_NET_ACTIVE_WINDOW]", ret);
+}
+
+int xdo_set_number_of_desktops(xdo_t *xdo, long ndesktops) {
+  /* XXX: This should support passing a screen number */
+  XEvent xev;
+  Window root;
+  int ret;
+
+  root = RootWindow(xdo->xdpy, 0);
+
+  xev.type = ClientMessage;
+  xev.xclient.display = xdo->xdpy;
+  xev.xclient.window = root;
+  xev.xclient.message_type = XInternAtom(xdo->xdpy, "_NET_NUMBER_OF_DESKTOPS", 
+                                         False);
+  xev.xclient.format = 32;
+  xev.xclient.data.l[0] = ndesktops;
+  xev.xclient.data.l[1] = 0;
+  xev.xclient.data.l[2] = 0;
+  xev.xclient.data.l[3] = 0;
+
+  ret = XSendEvent(xdo->xdpy, root, False,
+                   SubstructureNotifyMask | SubstructureRedirectMask,
+                   &xev);
+
+  return _is_success("XSendEvent[EWMH:_NET_NUMBER_OF_DESKTOPS]", ret);
+}
+
+int xdo_get_number_of_desktops(xdo_t *xdo, long *ndesktops) {
+  Atom type;
+  int size;
+  long nitems;
+  unsigned char *data;
+  Window root;
+
+  Atom request;
+
+  request = XInternAtom(xdo->xdpy, "_NET_NUMBER_OF_DESKTOPS", False);
+  root = XDefaultRootWindow(xdo->xdpy);
+
+  data = _xdo_getwinprop(xdo, root, request, &nitems, &type, &size);
+
+  if (nitems > 0)
+    *ndesktops = *((long*)data);
+  else
+    *ndesktops = 0;
+
+  return _is_success("XGetWindowProperty[_NET_NUMBER_OF_DESKTOPS]",
+                     *ndesktops == 0);
+
+}
+
+int xdo_set_current_desktop(xdo_t *xdo, long desktop) {
+  /* XXX: This should support passing a screen number */
+  XEvent xev;
+  Window root;
+  int ret;
+
+  root = RootWindow(xdo->xdpy, 0);
+
+  xev.type = ClientMessage;
+  xev.xclient.display = xdo->xdpy;
+  xev.xclient.window = root;
+  xev.xclient.message_type = XInternAtom(xdo->xdpy, "_NET_CURRENT_DESKTOP", 
+                                         False);
+  xev.xclient.format = 32;
+  xev.xclient.data.l[0] = desktop;
+  xev.xclient.data.l[1] = CurrentTime;
+  xev.xclient.data.l[2] = 0;
+  xev.xclient.data.l[3] = 0;
+
+  ret = XSendEvent(xdo->xdpy, root, False,
+                   SubstructureNotifyMask | SubstructureRedirectMask,
+                   &xev);
+
+  printf("ret: %d\n", ret);
+  return _is_success("XSendEvent[EWMH:_NET_CURRENT_DESKTOP]", ret);
+}
+
+int xdo_get_current_desktop(xdo_t *xdo, long *desktop) {
+  Atom type;
+  int size;
+  long nitems;
+  unsigned char *data;
+  Window root;
+
+  Atom request;
+
+  request = XInternAtom(xdo->xdpy, "_NET_CURRENT_DESKTOP", False);
+  root = XDefaultRootWindow(xdo->xdpy);
+
+  data = _xdo_getwinprop(xdo, root, request, &nitems, &type, &size);
+
+  if (nitems > 0)
+    *desktop = *((long*)data);
+  else
+    *desktop = -1;
+
+  return _is_success("XGetWindowProperty[_NET_CURRENT_DESKTOP]",
+                     *desktop == -1);
+}
+
+int xdo_set_desktop_for_window(xdo_t *xdo, Window wid, long desktop) {
+  XEvent xev;
+  int ret;
+  XWindowAttributes wattr;
+  XGetWindowAttributes(xdo->xdpy, wid, &wattr);
+
+  xev.type = ClientMessage;
+  xev.xclient.display = xdo->xdpy;
+  xev.xclient.window = wid;
+  xev.xclient.message_type = XInternAtom(xdo->xdpy, "_NET_WM_DESKTOP", 
+                                         False);
+  xev.xclient.format = 32;
+  xev.xclient.data.l[0] = desktop;
+  xev.xclient.data.l[1] = 2; /* indicate we are messaging from a pager */
+  xev.xclient.data.l[2] = 0;
+  xev.xclient.data.l[3] = 0;
+
+  ret = XSendEvent(xdo->xdpy, wattr.screen->root, False,
+                   SubstructureNotifyMask | SubstructureRedirectMask,
+                   &xev);
+
+  printf("ret: %d\n", ret);
+  return _is_success("XSendEvent[EWMH:_NET_WM_DESKTOP]", ret);
+}
+
+int xdo_get_desktop_for_window(xdo_t *xdo, Window wid, long *desktop) {
+  Atom type;
+  int size;
+  long nitems;
+  unsigned char *data;
+
+  Atom request;
+
+  request = XInternAtom(xdo->xdpy, "_NET_WM_DESKTOP", False);
+
+  data = _xdo_getwinprop(xdo, wid, request, &nitems, &type, &size);
+
+  if (nitems > 0)
+    *desktop = *((long*)data);
+  else
+    *desktop = -1;
+
+  return _is_success("XGetWindowProperty[_NET_WM_DESKTOP]",
+                     *desktop == -1);
 }
 
 /* XRaiseWindow is ignored in ion3 and Gnome2. Is it even useful? */
@@ -327,7 +501,6 @@ int xdo_keysequence(xdo_t *xdo, char *keyseq) {
   return True;
 }
 
-
 /* Add by Lee Pumphret 2007-07-28
  * Modified slightly by Jordan Sissel */
 int xdo_window_get_focus(xdo_t *xdo, Window *window_ret) {
@@ -336,7 +509,6 @@ int xdo_window_get_focus(xdo_t *xdo, Window *window_ret) {
   ret = XGetInputFocus(xdo->xdpy, window_ret, &unused_revert_ret);
   return _is_success("XGetInputFocus", ret);
 }
-
 
 /* Helper functions */
 static int _xdo_keycode_from_char(xdo_t *xdo, char key) {
@@ -566,6 +738,9 @@ int _is_success(const char *funcname, int code) {
   } else if (code == BadWindow) {
     fprintf(stderr, "%s failed: got bad window\n", funcname);
     return False;
+  } else if (code != Success) {
+    fprintf(stderr, "%s failed (code=%d)\n", funcname, code);
+    return False;
   }
 
   return True;
@@ -581,43 +756,42 @@ int _xdo_is_window_visible(xdo_t *xdo, Window wid) {
   return True;
 }
 
-/* main test */
-#ifdef BUILDMAIN
-int main(int argc, char **argv) {
-  char *display_name;
-  xdo_t *xdo;
+/* Arbitrary window property retrieval
+ * slightly modified version from xprop.c from Xorg */
+unsigned char * _xdo_getwinprop(xdo_t *xdo, Window window, Atom atom,
+                                long *nitems, Atom *type, int *size) {
+  Atom actual_type;
+  int actual_format;
+  unsigned long _nitems;
+  unsigned long nbytes;
+  unsigned long bytes_after; /* unused */
+  unsigned char *prop;
+  int status;
 
-  char *yay;
-
-  if ( (display_name = getenv("DISPLAY")) == (void *)NULL) {
-    fprintf(stderr, "Error: DISPLAY environment variable not set\n");
-    exit(1);
+  status = XGetWindowProperty(xdo->xdpy, window, atom, 0, (~0L),
+                              False, AnyPropertyType, &actual_type,
+                              &actual_format, &_nitems, &bytes_after,
+                              &prop);
+  if (status == BadWindow) {
+    fprintf(stderr, "window id # 0x%lx does not exists!", window);
+    return NULL;
+  } if (status != Success) {
+    fprintf(stderr, "XGetWindowProperty failed!");
+    return NULL;
   }
 
-  //yay = strdup("ctrl+l");
+  if (actual_format == 32)
+    nbytes = sizeof(long);
+  else if (actual_format == 16)
+    nbytes = sizeof(short);
+  else if (actual_format == 8)
+    nbytes = 1;
+  else if (actual_format == 0)
+    nbytes = 0;
 
-  xdo = xdo_new(display_name);
-  //xdo_mousemove(xdo, 100, 100);
-  //usleep(100 * 1000);
-  //xdo_keysequence(xdo, strdup("ctrl+l"));
-  //xdo_type(xdo, strdup("ls"));
-  //xdo_keysequence(xdo, strdup("Return"));
-
-  
-  Window *list;
-  int nwindows;
-  char *query = "xterm";
-  int i;
-  if (argc > 1)
-    query = argv[1];
-
-  xdo_window_list_by_regex(xdo, query, &list, &nwindows);
-  for (i = 0; i < nwindows; i++) {
-    printf("%d\n", list[i]);
-  }
-  xdo_free(xdo);
-
-  return 0;
+  *nitems = _nitems;
+  *type = actual_type;
+  *size = actual_format;
+  return prop;
 }
-#endif
 
