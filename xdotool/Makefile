@@ -1,5 +1,14 @@
-WARNFLAGS+=-pedantic -Wall -W -Wno-missing-field-initializers -Wundef -Wendif-labels -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-align -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wdisabled-optimization
-CFLAGS=-pipe -std=c99
+PREFIX=/usr/local
+INSTALLBIN=/usr/local/bin
+INSTALLMAN=/usr/local/man
+
+WARNFLAGS+=-pedantic -Wall -W -Wno-missing-field-initializers -Wundef \
+           -Wendif-labels -Wshadow -Wpointer-arith -Wbad-function-cast \
+           -Wcast-align -Wwrite-strings -Wstrict-prototypes \
+           -Wmissing-prototypes -Wnested-externs -Winline \
+           -Wdisabled-optimization
+
+CFLAGS=-pipe -std=c99 $(WARNFLAGS)
 
 DEFAULT_LIBS=-L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst
 DEFAULT_INC=-I/usr/X11R6/include -I/usr/local/include
@@ -10,13 +19,26 @@ INC=`pkg-config --cflags x11 xtst 2> /dev/null || echo "$(DEFAULT_INC)"`
 CFLAGS+=$(INC)
 LDFLAGS+=$(LIBS)
 
-all: xdotool
+all: xdotool xdotool.1
+
+install: installprog installman
+
+installprog: xdotool
+	install -m 755 xdotool $(INSTALLBIN)/
+
+installman: xdotool.1
+	[ -d $(INSTALLMAN) ] || mkdir $(INSTALLMAN)
+	[ -d $(INSTALLMAN)/man1 ] || mkdir $(INSTALLMAN)/man1
+	install -m 644 xdotool.1 $(INSTALLMAN)/man1/
+
+deinstall: uninstall
+uninstall: 
+	rm -f $(INSTALLBIN)/xdotool
+	rm -f $(INSTALLMAN)/man1/xdotool.1
+
 
 clean:
 	rm -f *.o || true
-
-wmspec: wmspec.c
-	gcc -g $(LDFLAGS) $(CFLAGS) wmspec.c -o wmspec
 
 xdo.o: xdo.c
 	gcc $(CFLAGS) -c xdo.c
@@ -30,13 +52,16 @@ xdotool.c: xdo.h
 xdotool: xdotool.o xdo.o
 	gcc $(CFLAGS) $(LDFLAGS) xdotool.o xdo.o -o $@
 
+xdotool.1: xdotool.pod
+	pod2man -c "" -r "" xdotool.pod > $@
+
 package: test-package-build create-package
 
-create-package:
+create-package: xdotool.1
 	@NAME=xdotool-`date +%Y%m%d`; \
 	echo "Creating package: $$NAME"; \
 	mkdir $${NAME}; \
-	rsync --exclude .svn -a `ls -d *.1 COPYRIGHT *.c *.h examples t CHANGELIST README Makefile* 2> /dev/null` $${NAME}/; \
+	rsync --exclude .svn -a `ls -d *.1 *.pod COPYRIGHT *.c *.h examples t CHANGELIST README Makefile* 2> /dev/null` $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \
 	rm -rf $${NAME}/
 
