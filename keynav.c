@@ -47,6 +47,7 @@ typedef struct wininfo {
   int grid_y;
   int border_thickness;
   int pen_size;
+  int center_cut_size;
 } wininfo_t;
 
 static wininfo_t wininfo;
@@ -406,7 +407,7 @@ GC creategc(Window win) {
   return gc;
 }
 
-void drawgrid(Window win, struct wininfo *info) {
+void drawgrid(Window win, struct wininfo *info, int apply_clip) {
   GC gc;
   XRectangle clip[30];
   int idx = 0;
@@ -482,16 +483,18 @@ void drawgrid(Window win, struct wininfo *info) {
     idx++;
   }
 
-  XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
+  if (apply_clip) {
+    XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
 
-#define CUTSIZE 5
-  /* Cut out a hole in the center */
-  clip[idx].x = (w/2 - (CUTSIZE/2));
-  clip[idx].y = (h/2 - (CUTSIZE/2));
-  clip[idx].width = CUTSIZE;
-  clip[idx].height = CUTSIZE;
-  idx++;
-  XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
+    /* Cut out a hole in the center */
+    clip[idx].x = (w/2 - (info->center_cut_size/2));
+    clip[idx].y = (h/2 - (info->center_cut_size/2));
+    clip[idx].width = info->center_cut_size;
+    clip[idx].height = info->center_cut_size;
+    idx++;
+
+    XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
+  }
 
   for (i = 0; i < idx; i++) {
     drawborderline(info, win, gc, &(clip[i]));
@@ -513,6 +516,7 @@ void cmd_start(char *args) {
 
   wininfo.border_thickness = 5;
   wininfo.pen_size = 1;
+  wininfo.center_cut_size = 5;
 
   if ((appstate & STATE_ACTIVE) == 0) {
     appstate |= STATE_ACTIVE;
@@ -526,7 +530,7 @@ void cmd_start(char *args) {
     /* Tell the window manager not to manage us */
     winattr.override_redirect = 1;
     XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
-    XSelectInput(dpy, zone, StructureNotifyMask);
+    XSelectInput(dpy, zone, StructureNotifyMask | ExposureMask);
   }
 }
 
@@ -650,7 +654,7 @@ void cmd_drag(char *args) {
   if (args == NULL) {
     button = drag_button;
   } else {
-    int count = sscanf(args, "%d %127s", &button, drag_modkeys);
+    int count = sscanf(args, "%d %127S", &button, drag_modkeys);
     if (count == 0) {
       button = 1; /* Default to left mouse button */
       drag_modkeys[0] = '\0';
@@ -770,7 +774,7 @@ void update() {
 
   /* XXX: If I don't call drawgrid here twice, sometimes it fails to paint
    * properly.  I haven't put any time investigating why. */
-  drawgrid(zone, &wininfo);
+  drawgrid(zone, &wininfo, True);
   XMapWindow(dpy, zone);
 }
 
@@ -933,13 +937,17 @@ int main(int argc, char **argv) {
         update();
         break;
 
+      case Expose:
+        drawgrid(zone, &wininfo, False);
+        break;
+
       // Ignorable events.
       case KeyRelease:
       case DestroyNotify:
       case UnmapNotify:
         break;
       default:
-        //printf("Event: %d\n", e.type);
+        printf("Event: %d\n", e.type);
         break;
     }
   }
