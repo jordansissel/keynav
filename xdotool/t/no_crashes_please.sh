@@ -2,7 +2,7 @@
 
 try () {
   "$@" > /dev/null
-  
+
   if [ $? -ne 0 ]; then
     echo "FAILURE: $@"
   else
@@ -21,11 +21,14 @@ xdotool="../xdotool"
 xterm -T xdotool_test_window -e 'sleep 300' &
 xterm_pid="$!"
 
+sleep 1
+
 try $xdotool search xdotool_test_window
 try $xdotool getwindowfocus
 
 wid=`$xdotool search xdotool_test_window`
-try $xdotool windowsize $wid 50 50
+try $xdotool windowraise $wid
+try $xdotool windowsize $wid 500 500
 try $xdotool windowfocus $wid
 try $xdotool windowmove $wid 300 300
 try $xdotool windowunmap $wid
@@ -43,9 +46,10 @@ try $xdotool type "hello"
 try $xdotool key "ctrl+w"
 
 try $xdotool windowactivate $wid
+sleep 0.2
 
-try $xdotool get_num_desktops $wid
-desktops=`$xdotool get_num_desktops $wid`
+try $xdotool get_num_desktops
+desktops=`$xdotool get_num_desktops`
 try $xdotool set_num_desktops $desktops
 
 cur_desktop=`$xdotool get_desktop`
