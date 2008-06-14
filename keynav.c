@@ -20,12 +20,12 @@
 extern keysymcharmap_t keysymcharmap[];
 extern char *symbol_map[];
 
-Display *dpy;
-Window root;
-XWindowAttributes rootattr;
-Window zone;
-xdo_t *xdo;
-int appstate = 0;
+static Display *dpy;
+static Window root;
+static XWindowAttributes rootattr;
+static Window zone;
+static xdo_t *xdo;
+static int appstate = 0;
 
 int drag_button = 0;
 char drag_modkeys[128];
@@ -223,7 +223,7 @@ void addbinding(int keycode, int mods, char *commands) {
   keybindings[nkeybindings].mods = mods;
   nkeybindings++;
 
-  if (!strcmp(commands, "start")) {
+  if (!strncmp(commands, "start", 5)) {
     XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
     XGrabKey(dpy, keycode, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
     XGrabKey(dpy, keycode, mods | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
@@ -486,12 +486,6 @@ void drawgrid(Window win, struct wininfo *info) {
 void cmd_start(char *args) {
   XSetWindowAttributes winattr;
 
-  if (appstate & STATE_ACTIVE)
-    return;
-
-  appstate |= STATE_ACTIVE;
-  XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-
   wininfo.x = 0;
   wininfo.y = 0;
   wininfo.w = rootattr.width;
@@ -504,16 +498,19 @@ void cmd_start(char *args) {
   wininfo.border_thickness = 5;
   wininfo.pen_size = 1;
 
-  zone = XCreateSimpleWindow(dpy, root, wininfo.x, wininfo.y, 
-                             wininfo.w, wininfo.h, 0, 
-                             BlackPixel(dpy, 0), WhitePixel(dpy, 0));
+  if ((appstate & STATE_ACTIVE) == 0) {
+    appstate |= STATE_ACTIVE;
+    XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
 
-  /* Tell the window manager not to manage us */
-  winattr.override_redirect = 1;
-  XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
-  XSelectInput(dpy, zone, StructureNotifyMask);
-  update();
-  XMapWindow(dpy, zone);
+    zone = XCreateSimpleWindow(dpy, root, wininfo.x, wininfo.y, 
+                               1, 1, 0, 
+                               BlackPixel(dpy, 0), WhitePixel(dpy, 0));
+
+    /* Tell the window manager not to manage us */
+    winattr.override_redirect = 1;
+    XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
+    XSelectInput(dpy, zone, StructureNotifyMask);
+  }
 }
 
 void cmd_end(char *args) {
@@ -538,7 +535,6 @@ void cmd_cut_up(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.h = percent_of(wininfo.h, args, .5);
-  update();
 }
 
 void cmd_cut_down(char *args) {
@@ -547,14 +543,12 @@ void cmd_cut_down(char *args) {
     return;
   wininfo.h = percent_of(wininfo.h, args, .5);
   wininfo.y += orig - wininfo.h;
-  update();
 }
 
 void cmd_cut_left(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.w = percent_of(wininfo.w, args, .5);
-  update();
 }
 
 void cmd_cut_right(char *args) {
@@ -563,35 +557,30 @@ void cmd_cut_right(char *args) {
     return;
   wininfo.w = percent_of(wininfo.w, args, .5);
   wininfo.x += orig - wininfo.w;
-  update();
 }
 
 void cmd_move_up(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.y -= percent_of(wininfo.h, args, 1);
-  update();
 }
 
 void cmd_move_down(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.y += percent_of(wininfo.h, args, 1);
-  update();
 }
 
 void cmd_move_left(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.x -= percent_of(wininfo.w, args, 1);
-  update();
 }
 
 void cmd_move_right(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.x += percent_of(wininfo.w, args, 1);
-  update();
 }
 
 void cmd_warp(char *args) {
@@ -690,7 +679,6 @@ void cmd_grid(char *args) {
 
   wininfo.grid_x = grid_x;
   wininfo.grid_y = grid_y;
-  update();
 }
 
 void cmd_cell_select(char *args) {
@@ -734,14 +722,11 @@ void cmd_cell_select(char *args) {
   wininfo.h = wininfo.h / wininfo.grid_x;
   wininfo.x = wininfo.x + (wininfo.w * (y - 1));
   wininfo.y = wininfo.y + (wininfo.h * (x - 1));
-  update();
 }
 
 void update() {
-
-  if ( ! appstate ) {
+  if (appstate & STATE_ACTIVE == 0)
     return;
-  }
 
   if (wininfo.x < 0)
     wininfo.x = 0;
@@ -762,7 +747,7 @@ void update() {
   /* XXX: If I don't call drawgrid here twice, sometimes it fails to paint
    * properly.  I haven't put any time investigating why. */
   drawgrid(zone, &wininfo);
-  drawgrid(zone, &wininfo);
+  XMapWindow(dpy, zone);
 }
 
 void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *rect) {
@@ -816,7 +801,6 @@ void handle_commands(char *commands) {
     /* Ignore leading whitespace */
     while (*tok == ' ' || *tok == '\t')
       tok++;
-    //printf("cmd: %s\n", tok);
 
     strptr = NULL;
     for (i = 0; dispatch[i].command; i++) {
@@ -842,7 +826,7 @@ void handle_commands(char *commands) {
 
         found = 1;
         dispatch[i].func(args);
-        //printf("App state: %d\n", appstate);
+
         if (appstate & STATE_DRAGGING)
           cmd_warp(NULL);
       }
@@ -851,6 +835,9 @@ void handle_commands(char *commands) {
     if (!found)
       fprintf(stderr, "No such command: '%s'\n", tok);
   }
+  if (appstate & STATE_ACTIVE)
+    update();
+
   free(cmdcopy);
 }
 
