@@ -46,7 +46,20 @@ ctrl+u cut-right,cut-up
 ctrl+b cut-left,cut-down
 ctrl+n cut-right,cut-down
 
-# Example of cut and move without the default values
+### Example using the 'sh' command.
+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')",end
+ctrl+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')",end
+
+### Drag examples
+# Start drag holding the left mouse button
+#q drag 1
+# Start drag holding middle mouse + control and shift
+#w drag 2 ctrl+shift
+
+### History
+#a history-back
+
+### Example of cut and move without the default values
 #h cut-left .75
 #j cut-down .75
 #k cut-up .75
@@ -56,7 +69,7 @@ ctrl+n cut-right,cut-down
 #shift+k move-up .50
 #shift+l move-right .50
 
-# Example using a 2-row, 3-column grid, 
+### Example using a 2-row, 3-column grid, 
 # mapped to Insert/Home/PageUp/etc...
 #6 grid 2x3
 #Insert cell-select 1x1
@@ -66,7 +79,7 @@ ctrl+n cut-right,cut-down
 #End cell-select 2x2
 #Next cell-select 2x3   # PageDown
 
-# Example using a 3x3 grid with nethack-vi keys
+### Example using a 3x3 grid with nethack-vi keys
 #ctrl+semicolon start, grid 3x3
 #h cell-select 2x1      # left
 #j cell-select 3x2      # down

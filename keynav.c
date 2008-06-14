@@ -25,6 +25,8 @@
 extern keysymcharmap_t keysymcharmap[];
 extern char *symbol_map[];
 
+extern char **environ;
+
 static Display *dpy;
 static Window root;
 static XWindowAttributes rootattr;
@@ -58,24 +60,25 @@ static wininfo_t wininfo_history[WININFO_MAXHIST]; /* XXX: is 100 enough? */
 static int wininfo_history_pivot = 0;
 
 void defaults();
-void cmd_cut_up(char *args);
+void cmd_cell_select(char *args);
+void cmd_click(char *args);
 void cmd_cut_down(char *args);
 void cmd_cut_left(char *args);
 void cmd_cut_right(char *args);
-void cmd_move_up(char *args);
+void cmd_cut_up(char *args);
+void cmd_doubleclick(char *args);
+void cmd_drag(char *args);
+void cmd_end(char *args);
+void cmd_grid(char *args);
+void cmd_history_back(char *args);
 void cmd_move_down(char *args);
 void cmd_move_left(char *args);
 void cmd_move_right(char *args);
-void cmd_warp(char *args);
-void cmd_click(char *args);
-void cmd_doubleclick(char *args);
-void cmd_drag(char *args);
-void cmd_grid(char *args);
-void cmd_cell_select(char *args);
-void cmd_start(char *args);
-void cmd_end(char *args);
-void cmd_history_back(char *args);
+void cmd_move_up(char *args);
 void cmd_quit(char *args); /* XXX: Is this even necessary? */
+void cmd_shell(char *args);
+void cmd_start(char *args);
+void cmd_warp(char *args);
 
 void update();
 void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *clip);
@@ -112,6 +115,7 @@ struct dispatch {
   "drag", cmd_drag,
 
   // Other commands.
+  "sh", cmd_shell,
   "start", cmd_start,
   "end", cmd_end, 
   "history-back", cmd_history_back,
@@ -499,7 +503,6 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
   for (i = 0; i < idx; i++) {
     drawborderline(info, win, gc, &(clip[i]));
   }
-
 }
 
 void cmd_start(char *args) {
@@ -553,6 +556,28 @@ void cmd_history_back(char *args) {
     return;
 
   restore_history_point(1);
+}
+
+void cmd_shell(char *args) {
+  // Trim leading and trailing quotes if they exist
+  if (*args == '"') {
+    args++;
+    *(args + strlen(args) - 1) = '\0';
+  }
+
+  if (fork() == 0) { /* child */
+    char *shell = "/bin/sh";
+    char *argv[4];
+    int ret;
+    argv[0] = shell;
+    argv[1] = "-c";
+    argv[2] = args;
+    argv[3] = "\0";
+    ret = execve(shell, argv, environ);
+    printf("SHOULD NOT GET HERE: %d\n", ret);
+    perror("Foo");
+    exit(1);
+  }
 }
 
 void cmd_quit(char *args) {
