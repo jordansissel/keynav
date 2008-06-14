@@ -320,7 +320,6 @@ void defaults() {
     "ctrl+u cut-right,cut-up",
     "ctrl+b cut-left,cut-down",
     "ctrl+n cut-right,cut-down",
-
     NULL,
   };
   for (i = 0; default_config[i]; i++) {

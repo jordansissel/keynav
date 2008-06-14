@@ -14,6 +14,7 @@
 
 ctrl+semicolon start
 Escape end
+ctrl+bracketleft end
 h cut-left
 j cut-down
 k cut-up

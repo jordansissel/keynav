@@ -1,6 +1,7 @@
 20080614.01:
   - Several bug fixes and feature additions suggested by Yuri D'Elia.
   - Sync xdotool library to 20080606
+  - Added default key binding Ctrl+[ as 'end' (requested by Luke Macken)
   - New command: 'sh' - Executes shell commands.
     Example keynavrc: ctrl+x sh "xterm -bg black -fg white"
   - New command: 'history-back' - Undo a window change operation
