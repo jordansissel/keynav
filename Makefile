@@ -5,6 +5,8 @@ LDFLAGS=`pkg-config --libs x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile
 
+MICROVERSION?=00
+
 all: keynav
 
 clean:
@@ -19,8 +21,7 @@ xdo.o:
 	cp xdotool/xdo.o .
 
 package: clean
-	#NAME=keynav-`date +%Y%m%d`; \
-	NAME=keynav-20080522; \
+	NAME=keynav-`date +%Y%m%d`.$(MICROVERSION); \
 	mkdir $${NAME}; \
 	rsync --exclude '.*' -av *.c $(OTHERFILES) xdotool $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \

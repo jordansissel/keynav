@@ -1,3 +1,27 @@
+20080614.01:
+  - Several bug fixes and feature additions suggested by Yuri D'Elia.
+  - Sync xdotool library to 20080606
+  - New command: 'sh' - Executes shell commands.
+    Example keynavrc: ctrl+x sh "xterm -bg black -fg white"
+  - New command: 'history-back' - Undo a window change operation
+    Example keynavrc: a history-back
+    + Such operations include: cut-*, grid, cell-select, move-*
+    + The history size is currently hard-coded at 100 entries. 
+    + If you exceed 100 moves, the oldest entry will be removed.
+    + Every time keynav is activated, the history is wiped.
+  - Fix: Any command starting with "start" is now bound globally.
+  - Fix: All rendering is delayed until after the end of the current command
+    sequence. This fixes (in order of annoyance, worst first):
+    1) Crash when a 'start' and 'end' exist in the same command sequence.
+    2) Visible 2x2 grid first, before a 3x3 grid when the start command is
+       'start, grid 3x3'
+    3) Rendering blinking a full white window on the screen before clipping to
+       the grid.
+    4) Visible blink when "cut-left,cut-up" and such are run simultaneously.
+  - Fix: If the 'start' command is invoked again while keynav is active, then
+    the default arrangement is set (full screen and 2x2 grid). Previously, the
+    'start' command was a no-op if keynav was active.
+
 20080522:
   - Sync xdotool library to 20080521.
   - Added 2 grid examples to keynavrc
