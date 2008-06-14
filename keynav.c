@@ -1,5 +1,10 @@
 /*
- * Visual user-directed binary search for something to point your mouse at.
+ * Visual user-directed binary or grid search for something to point your mouse
+ * at.
+ *
+ * TODO:
+ * XXX: Merge 'wininfo' and 'wininfo_history'. The latest history entry is the
+ *      same as wininfo, so use that instead.
  */
 
 #include <stdio.h>
@@ -27,13 +32,13 @@ static Window zone;
 static xdo_t *xdo;
 static int appstate = 0;
 
-int drag_button = 0;
-char drag_modkeys[128];
+static int drag_button = 0;
+static char drag_modkeys[128];
 
 #define STATE_ACTIVE 0x0001 
 #define STATE_DRAGGING 0x0002
 
-struct wininfo {
+typedef struct wininfo {
   int x;
   int y;
   int w;
@@ -42,7 +47,14 @@ struct wininfo {
   int grid_y;
   int border_thickness;
   int pen_size;
-} wininfo;
+} wininfo_t;
+
+static wininfo_t wininfo;
+
+/* history tracking */
+#define WININFO_MAXHIST (100)
+static wininfo_t wininfo_history[WININFO_MAXHIST]; /* XXX: is 100 enough? */
+static int wininfo_history_pivot = 0;
 
 void defaults();
 void cmd_cut_up(char *args);
@@ -61,6 +73,7 @@ void cmd_grid(char *args);
 void cmd_cell_select(char *args);
 void cmd_start(char *args);
 void cmd_end(char *args);
+void cmd_history_back(char *args);
 void cmd_quit(char *args); /* XXX: Is this even necessary? */
 
 void update();
@@ -69,6 +82,8 @@ void handle_keypress(XKeyEvent *e);
 void handle_commands(char *commands);
 void parse_config();
 void parse_config_line(char *line);
+void save_history_point();
+void restore_history_point(int moves_ago);
 
 int percent_of(int num, char *args, float default_val);
 
@@ -98,6 +113,7 @@ struct dispatch {
   // Other commands.
   "start", cmd_start,
   "end", cmd_end, 
+  "history-back", cmd_history_back,
   "quit", cmd_quit,
   NULL, NULL,
 };
@@ -500,6 +516,7 @@ void cmd_start(char *args) {
 
   if ((appstate & STATE_ACTIVE) == 0) {
     appstate |= STATE_ACTIVE;
+    wininfo_history_pivot = 0;
     XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
 
     zone = XCreateSimpleWindow(dpy, root, wininfo.x, wininfo.y, 
@@ -525,6 +542,13 @@ void cmd_end(char *args) {
 
   XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
+}
+
+void cmd_history_back(char *args) {
+  if (!(appstate & STATE_ACTIVE))
+    return;
+
+  restore_history_point(1);
 }
 
 void cmd_quit(char *args) {
@@ -835,10 +859,42 @@ void handle_commands(char *commands) {
     if (!found)
       fprintf(stderr, "No such command: '%s'\n", tok);
   }
-  if (appstate & STATE_ACTIVE)
+  if (appstate & STATE_ACTIVE) {
     update();
+    save_history_point();
+  }
 
   free(cmdcopy);
+}
+
+void save_history_point() {
+
+  /* If the history is full, drop the oldest entry */
+  while (wininfo_history_pivot >= WININFO_MAXHIST) {
+    int i;
+    for (i = 1; i < wininfo_history_pivot; i++) {
+      memcpy(&(wininfo_history[i - 1]),
+             &(wininfo_history[i]),
+             sizeof(wininfo_t));
+    }
+    wininfo_history_pivot--;
+  }
+
+  memcpy(&(wininfo_history[wininfo_history_pivot]),
+         &(wininfo),
+         sizeof(wininfo));
+
+  wininfo_history_pivot++;
+}
+
+void restore_history_point(int moves_ago) {
+  wininfo_history_pivot -= moves_ago + 1;
+  if (wininfo_history_pivot < 0)
+    wininfo_history_pivot = 0;
+
+  memcpy(&(wininfo),
+         &(wininfo_history[wininfo_history_pivot]),
+         sizeof(wininfo));
 }
 
 int main(int argc, char **argv) {
