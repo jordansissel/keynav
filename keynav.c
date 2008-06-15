@@ -696,7 +696,9 @@ void cmd_drag(char *args) {
 
   drag_button = button;
 
-  cmd_warp(NULL);
+  /* Don't warp by default. If you want to warp, then issue the warp command. */
+  //cmd_warp(NULL);
+
   if (appstate & STATE_DRAGGING) { /* End dragging */
     appstate &= ~(STATE_DRAGGING);
     xdo_mouseup(xdo, button);
