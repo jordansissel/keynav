@@ -638,14 +638,21 @@ void cmd_move_right(char *args) {
 
 void cmd_cursorzoom(char *args) {
   int xradius = 0, yradius = 0, width = 0, height = 0;
-  int xmouse, ymouse;
+  int xloc, yloc;
   if (appstate & STATE_ACTIVE == 0)
     return;
 
   sscanf(args, "%d %d %d %d", xradius, yradius, width, height);
 
-  
+  xdo_mouselocation(xdo, &xloc, &yloc, NULL);
 
+  xloc -= xradius;
+  yloc -= yradius;
+
+  wininfo.x = xloc;
+  wininfo.y = yloc;
+  wininfo.w = width;
+  wininfo.h = height;
 }
 
 void cmd_warp(char *args) {

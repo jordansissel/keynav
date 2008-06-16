@@ -481,6 +481,36 @@ int xdo_mouseup(xdo_t *xdo, int button) {
   return _is_success("XTestFakeButtonEvent(up)", ret == 0);
 }
 
+int xdo_mouselocation(xdo_t *xdo, int *x_ret, int *y_ret, int *screen_num_ret) {
+  int ret = False;
+  int x = 0, y = 0, screen_num = 0;
+  int i = 0;
+  Window dummy_win = 0;
+  int dummy_int = 0;
+  unsigned int dummy_uint = 0;
+  int screencount = ScreenCount(xdo->xdpy);
+
+  for (i = 0; i < screencount; i++) {
+    Screen *screen = ScreenOfDisplay(xdo->xdpy, i);
+    ret = XQueryPointer(xdo->xdpy, RootWindowOfScreen(screen),
+                        &dummy_win, &dummy_win,
+                        &x, &y, &dummy_int, &dummy_int, &dummy_uint);
+    if (ret == True) {
+      screen_num = i;
+      break;
+    }
+  }
+
+  if (ret == True) {
+    if (x_ret != NULL) *x_ret = x;
+    if (y_ret != NULL) *y_ret = y;
+    if (screen_num_ret != NULL) *screen_num_ret = screen_num;
+  }
+
+  return _is_success("XQueryPointer", ret == False);
+
+}
+
 int xdo_click(xdo_t *xdo, int button) {
   int ret;
   ret = xdo_mousedown(xdo, button);

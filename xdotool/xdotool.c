@@ -27,6 +27,7 @@ int cmd_mousedown(int argc, char **args);
 int cmd_mousemove(int argc, char **args);
 int cmd_mousemove_relative(int argc, char **args);
 int cmd_mouseup(int argc, char **args);
+int cmd_mouselocation(int argc, char **args);
 int cmd_search(int argc, char **args);
 int cmd_type(int argc, char **args);
 int cmd_windowactivate(int argc, char **args);
@@ -69,6 +70,7 @@ struct dispatch {
   { "mousemove", cmd_mousemove, },
   { "mousemove_relative", cmd_mousemove_relative, },
   { "mouseup", cmd_mouseup, },
+  { "mouselocation", cmd_mouselocation, },
   { "type", cmd_type, },
   { "windowactivate", cmd_windowactivate, },
   { "windowfocus", cmd_windowfocus, },
@@ -222,7 +224,22 @@ int cmd_mouseup(int argc, char **args) {
   ret = xdo_mouseup(xdo, button);
   if (ret)
     fprintf(stderr, "xdo_mouseup reported an error\n");
-  
+
+  return ret;
+}
+
+int cmd_mouselocation(int argc, char **args) {
+  int x, y, screen_num;
+  int ret;
+  char *cmd = *args; argc--; args++;
+
+  if (argc != 0) {
+    fprintf(stderr, "usage: %s\n", cmd);
+    return 1;
+  }
+
+  ret = xdo_mouselocation(xdo, &x, &y, &screen_num);
+  printf("x:%d y:%d screen:%d\n", x, y, screen_num);
   return ret;
 }
 
