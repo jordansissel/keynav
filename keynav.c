@@ -75,6 +75,7 @@ void cmd_move_down(char *args);
 void cmd_move_left(char *args);
 void cmd_move_right(char *args);
 void cmd_move_up(char *args);
+void cmd_cursorzoom(char *args);
 void cmd_quit(char *args); /* XXX: Is this even necessary? */
 void cmd_shell(char *args);
 void cmd_start(char *args);
@@ -633,6 +634,18 @@ void cmd_move_right(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
   wininfo.x += percent_of(wininfo.w, args, 1);
+}
+
+void cmd_cursorzoom(char *args) {
+  int xradius = 0, yradius = 0, width = 0, height = 0;
+  int xmouse, ymouse;
+  if (appstate & STATE_ACTIVE == 0)
+    return;
+
+  sscanf(args, "%d %d %d %d", xradius, yradius, width, height);
+
+  
+
 }
 
 void cmd_warp(char *args) {
