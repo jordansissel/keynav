@@ -444,6 +444,34 @@ int xdo_get_desktop_for_window(xdo_t *xdo, Window wid, long *desktop) {
                      *desktop == -1);
 }
 
+int xdo_window_get_active(xdo_t *xdo, Window *window_ret) {
+  Atom type;
+  int size;
+  long nitems;
+  unsigned char *data;
+  Atom request;
+  Window root;
+
+  if (_xdo_ewmh_is_supported(xdo, "_NET_ACTIVE_WINDOW") == False) {
+    fprintf(stderr,
+            "Your windowmanager claims not to support _NET_ACTIVE_WINDOW, "
+            "so the attempt to query the active window aborted.\n");
+    return 1;
+  }
+
+  request = XInternAtom(xdo->xdpy, "_NET_ACTIVE_WINDOW", False);
+  root = XDefaultRootWindow(xdo->xdpy);
+  data = _xdo_getwinprop(xdo, root, request, &nitems, &type, &size);
+
+  if (nitems > 0)
+    *window_ret = *((Window*)data);
+  else
+    *window_ret = 0;
+
+  return _is_success("XGetWindowProperty[_NET_ACTIVE_WINDOW]",
+                     *window_ret == 0);
+}
+
 /* XRaiseWindow is ignored in ion3 and Gnome2. Is it even useful? */
 int xdo_window_raise(xdo_t *xdo, Window wid) {
   int ret;

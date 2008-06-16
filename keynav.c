@@ -76,6 +76,7 @@ void cmd_move_left(char *args);
 void cmd_move_right(char *args);
 void cmd_move_up(char *args);
 void cmd_cursorzoom(char *args);
+void cmd_windowzoom(char *args);
 void cmd_quit(char *args); /* XXX: Is this even necessary? */
 void cmd_shell(char *args);
 void cmd_start(char *args);
@@ -105,6 +106,7 @@ struct dispatch {
   "move-left", cmd_move_left,
   "move-right", cmd_move_right,
   "cursorzoom", cmd_cursorzoom,
+  "windowzoom", cmd_windowzoom,
 
   // Grid commands
   "grid", cmd_grid,
@@ -652,6 +654,24 @@ void cmd_cursorzoom(char *args) {
 
   wininfo.x = xloc - (width / 2);
   wininfo.y = yloc - (height / 2);
+  wininfo.w = width;
+  wininfo.h = height;
+}
+
+void cmd_windowzoom(char *args) {
+  Window curwin;
+  Window root;
+  Window dummy_win;
+  int x, y, width, height, border_width, depth;
+
+  xdo_window_get_active(xdo, &curwin);
+  XGetGeometry(xdo->xdpy, curwin, &root, &x, &y, &width, &height,
+               &border_width, &depth);
+  XTranslateCoordinates(xdo->xdpy, curwin, root, -border_width, -border_width,
+                        &x, &y, &dummy_win);
+
+  wininfo.x = x;
+  wininfo.y = y;
   wininfo.w = width;
   wininfo.h = height;
 }

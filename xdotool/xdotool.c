@@ -21,6 +21,7 @@
 
 int cmd_click(int argc, char **args);
 int cmd_getwindowfocus(int argc, char **args);
+int cmd_getactivewindow(int argc, char **args);
 int cmd_help(int argc, char **args);
 int cmd_key(int argc, char **args);
 int cmd_mousedown(int argc, char **args);
@@ -55,6 +56,7 @@ struct dispatch {
 } dispatch[] = {
   /* Query functions */
   { "getwindowfocus", cmd_getwindowfocus, },
+  { "getactivewindow", cmd_getactivewindow, },
   { "search", cmd_search, },
 
   /* Help me! */
@@ -526,6 +528,25 @@ int cmd_getwindowfocus(int argc, char **args) {
   }
 
   return ret;
+}
+
+int cmd_getactivewindow(int argc, char **args) {
+  Window wid = 0;
+  int ret;
+  char *cmd = *args; argc--; args++;
+
+  if (argc != 0) {
+    printf("usage: %s\n", cmd);
+    return 1;
+  }
+
+  ret = xdo_window_get_active(xdo, &wid);
+
+  if (ret) {
+    fprintf(stderr, "xdo_get_active_window reported an error\n");
+  } else {
+    window_print(wid);
+  }
 }
 
 int cmd_windowmap(int argc, char **args) {

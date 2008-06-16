@@ -69,6 +69,7 @@ int xdo_window_map(xdo_t *xdo, Window wid);
 int xdo_window_unmap(xdo_t *xdo, Window wid);
 
 /* pager-like behaviors */
+int xdo_window_get_active(xdo_t *xdo, Window *window_ret);
 int xdo_set_number_of_desktops(xdo_t *xdo, long ndesktops);
 int xdo_get_number_of_desktops(xdo_t *xdo, long *ndesktops);
 int xdo_set_current_desktop(xdo_t *xdo, long desktop);
