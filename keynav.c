@@ -104,6 +104,7 @@ struct dispatch {
   "move-down", cmd_move_down,
   "move-left", cmd_move_left,
   "move-right", cmd_move_right,
+  "cursorzoom", cmd_cursorzoom,
 
   // Grid commands
   "grid", cmd_grid,
@@ -642,15 +643,15 @@ void cmd_cursorzoom(char *args) {
   if (appstate & STATE_ACTIVE == 0)
     return;
 
-  sscanf(args, "%d %d %d %d", xradius, yradius, width, height);
+  sscanf(args, "%d %d %d %d", &xradius, &yradius, &width, &height);
 
   xdo_mouselocation(xdo, &xloc, &yloc, NULL);
 
-  xloc -= xradius;
-  yloc -= yradius;
+  //xloc -= xradius;
+  //yloc -= yradius;
 
-  wininfo.x = xloc;
-  wininfo.y = yloc;
+  wininfo.x = xloc - (width / 2);
+  wininfo.y = yloc - (height / 2);
   wininfo.w = width;
   wininfo.h = height;
 }
