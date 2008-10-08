@@ -842,7 +842,7 @@ void update() {
   /* XXX: If I don't call drawgrid here twice, sometimes it fails to paint
    * properly.  I haven't put any time investigating why. */
   drawgrid(zone, &wininfo, True);
-  XMapWindow(dpy, zone);
+  XMapRaised(dpy, zone);
 }
 
 void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *rect) {
