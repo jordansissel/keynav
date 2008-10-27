@@ -1,5 +1,5 @@
-CFLAGS=`pkg-config --cflags x11 xtst 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include`
-LDFLAGS=`pkg-config --libs x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst` 
+CFLAGS=`pkg-config --cflags xinerama x11 xtst 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include`
+LDFLAGS=`pkg-config --libs xinerama x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama` 
 
 #CFLAGS+=-g
 OTHERFILES=README CHANGELIST COPYRIGHT \

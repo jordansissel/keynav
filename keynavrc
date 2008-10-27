@@ -37,7 +37,10 @@ semicolon warp,end
 2 click 2
 3 click 3
 
-# In case you're still holding control after the start
+# Zoom to the current window
+w windowzoom
+
+# Handy for holding ctrl while using keynav:
 ctrl+h cut-left
 ctrl+j cut-down
 ctrl+k cut-up
@@ -48,8 +51,10 @@ ctrl+b cut-left,cut-down
 ctrl+n cut-right,cut-down
 
 ### Example using the 'sh' command.
-f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')",end
+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')", end
 ctrl+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')",end
+
+g sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox'); xdotool key ctrl+apostrophe; xdotool type gmail; xdotool key Return",end
 
 ### Drag examples
 # Start drag holding the left mouse button
@@ -58,7 +63,7 @@ ctrl+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox'
 #w drag 2 ctrl+shift
 
 ### History
-#a history-back
+a history-back
 
 ### Example of cut and move without the default values
 #h cut-left .75
@@ -91,5 +96,3 @@ ctrl+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox'
 #b cell-select 3x1      # down-left
 #n cell-select 3x3      # down-right
 #period cell-select 2x2 # center
-
-

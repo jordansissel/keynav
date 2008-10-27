@@ -18,6 +18,7 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <X11/extensions/shape.h>
+#include <X11/extensions/Xinerama.h>
 
 #include "xdotool/xdo.h"
 
@@ -28,8 +29,6 @@ extern char *symbol_map[];
 extern char **environ;
 
 static Display *dpy;
-static Window root;
-static XWindowAttributes rootattr;
 static Window zone;
 static xdo_t *xdo;
 static int appstate = 0;
@@ -50,14 +49,27 @@ typedef struct wininfo {
   int border_thickness;
   int pen_size;
   int center_cut_size;
+  int curviewport;
 } wininfo_t;
 
+typedef struct viewport {
+  int x;
+  int y;
+  int w;
+  int h;
+  int screen_num;
+  Window root;
+} viewport_t;
+
 static wininfo_t wininfo;
+static viewport_t *viewports;
+static int nviewports = 0;
+static int xinerama = 0;
 
 /* history tracking */
 #define WININFO_MAXHIST (100)
 static wininfo_t wininfo_history[WININFO_MAXHIST]; /* XXX: is 100 enough? */
-static int wininfo_history_pivot = 0;
+static int wininfo_history_cursor = 0;
 
 void defaults();
 void cmd_cell_select(char *args);
@@ -90,6 +102,15 @@ void parse_config();
 void parse_config_line(char *line);
 void save_history_point();
 void restore_history_point(int moves_ago);
+
+void query_screens();
+void query_screen_xinerama();
+void query_screen_normal();
+int viewport_sort(const void *a, const void *b);
+int query_current_screen();
+void viewport_left();
+void viewport_right();
+int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
 
 int percent_of(int num, char *args, float default_val);
 
@@ -249,10 +270,15 @@ void addbinding(int keycode, int mods, char *commands) {
   nkeybindings++;
 
   if (!strncmp(commands, "start", 5)) {
-    XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
-    XGrabKey(dpy, keycode, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
-    XGrabKey(dpy, keycode, mods | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
-    XGrabKey(dpy, keycode, mods | LockMask | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
+    int i = 0;
+    /* Grab on all screen roots */
+    for (i = 0; i < ScreenCount(dpy); i++) {
+      Window root = RootWindow(dpy, i);
+      XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
+      XGrabKey(dpy, keycode, mods | LockMask, root, False, GrabModeAsync, GrabModeAsync);
+      XGrabKey(dpy, keycode, mods | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
+      XGrabKey(dpy, keycode, mods | LockMask | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
+    }
   }
 }
 
@@ -510,12 +536,17 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
 
 void cmd_start(char *args) {
   XSetWindowAttributes winattr;
+  int i;
+  int screen;
 
-  wininfo.x = 0;
-  wininfo.y = 0;
-  wininfo.w = rootattr.width;
-  wininfo.h = rootattr.height;
+  screen = query_current_screen();
+  wininfo.curviewport = screen;
 
+  wininfo.x = viewports[wininfo.curviewport].x;
+  wininfo.y = viewports[wininfo.curviewport].y;
+  wininfo.w = viewports[wininfo.curviewport].w;
+  wininfo.h = viewports[wininfo.curviewport].h;
+  
   /* Default start with 4 cells, 2x2 */
   wininfo.grid_x = 2;
   wininfo.grid_y = 2;
@@ -526,11 +557,12 @@ void cmd_start(char *args) {
 
   if ((appstate & STATE_ACTIVE) == 0) {
     appstate |= STATE_ACTIVE;
-    wininfo_history_pivot = 0;
-    XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+    wininfo_history_cursor = 0;
+    XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
+                  GrabModeAsync, GrabModeAsync, CurrentTime);
 
-    zone = XCreateSimpleWindow(dpy, root, wininfo.x, wininfo.y, 
-                               1, 1, 0, 
+    zone = XCreateSimpleWindow(dpy, viewports[wininfo.curviewport].root,
+                               wininfo.x, wininfo.y, 1, 1, 0, 
                                BlackPixel(dpy, 0), WhitePixel(dpy, 0));
 
     /* Tell the window manager not to manage us */
@@ -660,14 +692,14 @@ void cmd_cursorzoom(char *args) {
 
 void cmd_windowzoom(char *args) {
   Window curwin;
-  Window root;
+  Window rootwin;
   Window dummy_win;
   int x, y, width, height, border_width, depth;
 
   xdo_window_get_active(xdo, &curwin);
-  XGetGeometry(xdo->xdpy, curwin, &root, &x, &y, &width, &height,
+  XGetGeometry(xdo->xdpy, curwin, &rootwin, &x, &y, &width, &height,
                &border_width, &depth);
-  XTranslateCoordinates(xdo->xdpy, curwin, root, -border_width, -border_width,
+  XTranslateCoordinates(xdo->xdpy, curwin, rootwin, -border_width, -border_width,
                         &x, &y, &dummy_win);
 
   wininfo.x = x;
@@ -823,14 +855,28 @@ void update() {
   if (appstate & STATE_ACTIVE == 0)
     return;
 
+  //printf("x: %d %d\n", wininfo.x, viewports[wininfo.curviewport].x);
+  if (wininfo.x < viewports[wininfo.curviewport].x)
+    viewport_left();
+
+  if (wininfo.x + wininfo.w >
+      viewports[wininfo.curviewport].x + viewports[wininfo.curviewport].w)
+    viewport_right();
+
+  /* Fix positioning if we went out of bounds (off the screen) */
   if (wininfo.x < 0)
     wininfo.x = 0;
-  if (wininfo.x + wininfo.w > rootattr.width)
-    wininfo.x = rootattr.width - wininfo.w;
+  if (wininfo.x + wininfo.w > 
+      viewports[wininfo.curviewport].x + viewports[wininfo.curviewport].w)
+    wininfo.x = viewports[wininfo.curviewport].x + viewports[wininfo.curviewport].w - wininfo.w;
+
+  /* XXX: We don't currently understand how to move around if displays are
+   * vertically stacked. */
   if (wininfo.y < 0)
     wininfo.y = 0;
-  if (wininfo.y + wininfo.h > rootattr.height)
-    wininfo.y = rootattr.height - wininfo.h;
+  if (wininfo.y + wininfo.h > 
+      viewports[wininfo.curviewport].y + viewports[wininfo.curviewport].h)
+    wininfo.y = viewports[wininfo.curviewport].h - wininfo.h;
 
   if (wininfo.w <= 1 || wininfo.h <= 1) {
     cmd_end(NULL);
@@ -843,6 +889,65 @@ void update() {
    * properly.  I haven't put any time investigating why. */
   drawgrid(zone, &wininfo, True);
   XMapRaised(dpy, zone);
+}
+
+void viewport_right() {
+  int expand_w = 0, expand_h = 0;
+
+  /* Expand if the current window is the size of the current viewport */
+  //printf("right %d] %d,%d vs %d,%d\n", wininfo.curviewport,
+         //wininfo.w, wininfo.h,
+         //viewports[wininfo.curviewport].w, viewports[wininfo.curviewport].h);
+  if (wininfo.curviewport == nviewports - 1)
+    return;
+
+  if (wininfo.w == viewports[wininfo.curviewport].w)
+    expand_w = 1;
+  if (wininfo.h == viewports[wininfo.curviewport].h) {
+    expand_h = 1;
+  }
+
+  wininfo.curviewport++;
+
+  if ((expand_w) || wininfo.w > viewports[wininfo.curviewport].w) {
+    wininfo.w = viewports[wininfo.curviewport].w;
+  }
+  if ((expand_h) || wininfo.h > viewports[wininfo.curviewport].h) {
+    wininfo.h = viewports[wininfo.curviewport].h;
+  }
+  wininfo.x = viewports[wininfo.curviewport].x;
+  //wininfo.y = viewports[wininfo.curviewport].y;
+
+  //printf("right: %d,%d %d,%d\n", wininfo.x, wininfo.y, wininfo.w, wininfo.h);
+}
+
+void viewport_left() {
+  int expand_w = 0, expand_h = 0;
+
+  /* Expand if the current window is the size of the current viewport */
+  //printf("left %d] %d,%d vs %d,%d\n", wininfo.curviewport,
+         //wininfo.w, wininfo.h,
+         //viewports[wininfo.curviewport].w, viewports[wininfo.curviewport].h);
+  if (wininfo.curviewport == 0)
+    return;
+
+  if (wininfo.w == viewports[wininfo.curviewport].w)
+    expand_w = 1;
+  if (wininfo.h == viewports[wininfo.curviewport].h) {
+    expand_h = 1;
+  }
+
+  wininfo.curviewport--;
+  if (expand_w || wininfo.w > viewports[wininfo.curviewport].w) {
+    wininfo.w = viewports[wininfo.curviewport].w;
+  }
+  if (expand_h || wininfo.h > viewports[wininfo.curviewport].h) {
+    wininfo.h = viewports[wininfo.curviewport].h;
+  }
+  wininfo.x = viewports[wininfo.curviewport].w - wininfo.w;
+  //wininfo.y = viewports[wininfo.curviewport].h - wininfo.h;
+
+  //printf("Left: %d,%d %d,%d\n", wininfo.x, wininfo.y, wininfo.w, wininfo.h);
 }
 
 void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *rect) {
@@ -941,31 +1046,141 @@ void handle_commands(char *commands) {
 void save_history_point() {
 
   /* If the history is full, drop the oldest entry */
-  while (wininfo_history_pivot >= WININFO_MAXHIST) {
+  while (wininfo_history_cursor >= WININFO_MAXHIST) {
     int i;
-    for (i = 1; i < wininfo_history_pivot; i++) {
+    for (i = 1; i < wininfo_history_cursor; i++) {
       memcpy(&(wininfo_history[i - 1]),
              &(wininfo_history[i]),
              sizeof(wininfo_t));
     }
-    wininfo_history_pivot--;
+    wininfo_history_cursor--;
   }
 
-  memcpy(&(wininfo_history[wininfo_history_pivot]),
+  memcpy(&(wininfo_history[wininfo_history_cursor]),
          &(wininfo),
          sizeof(wininfo));
 
-  wininfo_history_pivot++;
+  wininfo_history_cursor++;
 }
 
 void restore_history_point(int moves_ago) {
-  wininfo_history_pivot -= moves_ago + 1;
-  if (wininfo_history_pivot < 0)
-    wininfo_history_pivot = 0;
+  wininfo_history_cursor -= moves_ago + 1;
+  if (wininfo_history_cursor < 0)
+    wininfo_history_cursor = 0;
 
   memcpy(&(wininfo),
-         &(wininfo_history[wininfo_history_pivot]),
+         &(wininfo_history[wininfo_history_cursor]),
          sizeof(wininfo));
+}
+
+int viewport_sort(const void *a, const void *b) {
+  viewport_t *va = (viewport_t *)a;
+  viewport_t *vb = (viewport_t *)b;
+
+  return va->x - vb->x;
+}
+
+void query_screens() {
+  int dummyint;
+  if (XineramaQueryExtension(dpy, &dummyint, &dummyint)
+      && XineramaIsActive(dpy)) {
+    xinerama = True;
+    query_screen_xinerama();
+  } else { /* No xinerama */
+    query_screen_normal();
+  }
+
+  qsort(viewports, nviewports, sizeof(viewport_t), viewport_sort);
+}
+
+void query_screen_xinerama() {
+  int i;
+  XineramaScreenInfo *screeninfo;
+
+  screeninfo = XineramaQueryScreens(dpy, &nviewports);
+  viewports = calloc(nviewports, sizeof(viewport_t));
+  for (i = 0; i < nviewports; i++) {
+    viewports[i].x = screeninfo[i].x_org;
+    viewports[i].y = screeninfo[i].y_org;
+    viewports[i].w = screeninfo[i].width;
+    viewports[i].h = screeninfo[i].height;
+    viewports[i].root = DefaultRootWindow(dpy);
+  }
+}
+
+void query_screen_normal() {
+  int i;
+  Screen *s;
+  nviewports = ScreenCount(dpy);
+  viewports = calloc(nviewports, sizeof(viewport_t));
+
+  for (i = 0; i < nviewports; i++) {
+    s = ScreenOfDisplay(dpy, i);
+    viewports[i].x = 0;
+    viewports[i].y = 0;
+    viewports[i].w = s->width;
+    viewports[i].h = s->height;
+    viewports[i].root = RootWindowOfScreen(s);
+  }
+}
+
+int query_current_screen() {
+  int i;
+  if (xinerama) {
+    return query_current_screen_xinerama();
+  } else { 
+    return query_current_screen_normal();
+  }
+}
+
+int query_current_screen_xinerama() {
+  int i = 0, dummyint;
+  unsigned int dummyuint;
+  int x, y;
+  Window dummywin;
+  Window root = viewports[0].root;
+  XQueryPointer(dpy, root, &dummywin, &dummywin,
+                &x, &y, &dummyint, &dummyint, &dummyuint);
+
+  /* Figure which display the cursor is on */
+  for (i = 0; i < nviewports; i++) {
+    if (pointinrect(x, y, viewports[i].x, viewports[i].y,
+                    viewports[i].w, viewports[i].h)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+int query_current_screen_normal() {
+  int i = 0, dummyint;
+  unsigned int dummyuint;
+  int x, y;
+  Window dummywin;
+  Window root = viewports[0].root;
+  /* Query each Screen's root window to ask if the pointer is in it.
+   * I don't know of any other better way to ask what Screen is
+   * active (where is the cursor) */
+  for (i = 0; i < nviewports; i++) {
+    if (!XQueryPointer(dpy, viewports[i].root, &dummywin, &dummywin,
+                      &x, &y, &dummyint, &dummyint, &dummyuint))
+      continue;
+
+    if (pointinrect(x, y, viewports[i].x, viewports[i].y,
+                    viewports[i].w, viewports[i].h)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+int pointinrect(int px, int py, int rx, int ry, int rw, int rh) {
+  return (px >= rx)
+          && (px <= rx + rw)
+          && (py >= ry)
+          && (py <= ry + rh);
 }
 
 int main(int argc, char **argv) {
@@ -982,13 +1197,12 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  root = XDefaultRootWindow(dpy);
   xdo = xdo_new_with_opened_display(dpy, pcDisplay, False);
 
-  XGetWindowAttributes(dpy, root, &rootattr);
 
   /* Parse config */
   parse_config();
+  query_screens();
 
   while (1) {
     XEvent e;
