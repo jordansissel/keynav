@@ -12,6 +12,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
@@ -111,8 +114,8 @@ int query_current_screen();
 void viewport_left();
 void viewport_right();
 int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
-
 int percent_of(int num, char *args, float default_val);
+void sigchld(int sig);
 
 struct dispatch {
   char *command;
@@ -609,8 +612,7 @@ void cmd_shell(char *args) {
     argv[2] = args;
     argv[3] = "\0";
     ret = execve(shell, argv, environ);
-    printf("SHOULD NOT GET HERE: %d\n", ret);
-    perror("Foo");
+    perror("execve");
     exit(1);
   }
 }
@@ -1183,6 +1185,13 @@ int pointinrect(int px, int py, int rx, int ry, int rw, int rh) {
           && (py <= ry + rh);
 }
 
+void sigchld(int sig) {
+  int status;
+  while (waitpid(-1, &status, WNOHANG) > 0) {
+    /* Do nothing, but we needed to waitpid() to collect dead children */
+  }
+}
+
 int main(int argc, char **argv) {
   char *pcDisplay;
   int ret;
@@ -1197,6 +1206,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  signal(SIGCHLD, sigchld);
   xdo = xdo_new_with_opened_display(dpy, pcDisplay, False);
 
 
