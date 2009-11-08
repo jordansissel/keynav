@@ -1,3 +1,12 @@
+20091108:
+  - Added xinerama support.
+    * Default 'start' will now only be fullscreen on your current xinerama
+    display. You can move between screens by using the move-* actions to move
+    the current selection outside the border of the current screne.
+  - All xdotool commands now integers so we can forward their return status
+    to the user.
+  - Actually handle SIGCHLD now so the shell commands get reaped on exit.
+
 20080614.01:
   - Several bug fixes and feature additions suggested by Yuri D'Elia.
   - Sync xdotool library to 20080606

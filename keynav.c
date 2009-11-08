@@ -718,11 +718,11 @@ void cmd_warp(char *args) {
 
   /* Some apps (window managers) don't acknowledge a drag unless there's been
    * some wiggle. Let's wiggle if we're dragging. */
-  if (appstate & STATE_DRAGGING) {
-    xdo_mousemove_relative(xdo, 1, 1);
-    xdo_mousemove_relative(xdo, -1, 0);
-    xdo_mousemove_relative(xdo, 0, -1);
-  }
+  //if (appstate & STATE_DRAGGING) {
+    //xdo_mousemove_relative(xdo, 1, 1);
+    //xdo_mousemove_relative(xdo, -1, 0);
+    //xdo_mousemove_relative(xdo, 0, -1);
+  //}
 }
 
 void cmd_click(char *args) {
@@ -753,14 +753,13 @@ void cmd_drag(char *args) {
   if (args == NULL) {
     button = drag_button;
   } else {
-    int count = sscanf(args, "%d %127S", &button, drag_modkeys);
+    int count = sscanf(args, "%d %s", &button, drag_modkeys);
     if (count == 0) {
       button = 1; /* Default to left mouse button */
       drag_modkeys[0] = '\0';
     } else if (count == 1) {
       drag_modkeys[0] = '\0';
     }
-
     //printf("modkeys: %s\n", drag_modkeys);
   }
 
@@ -771,23 +770,19 @@ void cmd_drag(char *args) {
 
   drag_button = button;
 
-  /* Don't warp by default. If you want to warp, then issue the warp command. */
-  //cmd_warp(NULL);
-
   if (appstate & STATE_DRAGGING) { /* End dragging */
     appstate &= ~(STATE_DRAGGING);
     xdo_mouseup(xdo, button);
   } else { /* Start dragging */
     appstate |= STATE_DRAGGING;
-    xdo_keysequence_down(xdo, drag_modkeys);
+    xdo_keysequence_down(xdo, 0, drag_modkeys);
     //printf("down: %s\n", drag_modkeys);
     xdo_mousedown(xdo, button);
 
     /* Sometimes we need to move a little to tell the app we're dragging */
     xdo_mousemove_relative(xdo, 1, 0);
-    xdo_mousemove_relative(xdo, 100, 0);
-    //xdo_mousemove_relative(xdo, 1, 0);
-    xdo_keysequence_up(xdo, drag_modkeys);
+    xdo_mousemove_relative(xdo, -1, 0);
+    xdo_keysequence_up(xdo, 0, drag_modkeys);
   }
 }
 
@@ -886,9 +881,6 @@ void update() {
   }
 
   XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
-
-  /* XXX: If I don't call drawgrid here twice, sometimes it fails to paint
-   * properly.  I haven't put any time investigating why. */
   drawgrid(zone, &wininfo, True);
   XMapRaised(dpy, zone);
 }
