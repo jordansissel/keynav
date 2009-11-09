@@ -1,5 +1,5 @@
-CFLAGS=`pkg-config --cflags xcb-shape xinerama x11 xtst 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include`
-LDFLAGS=`pkg-config --libs xcb-shape xinerama x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama` 
+CFLAGS=`pkg-config --cflags xext xinerama x11 xtst 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include`
+LDFLAGS=`pkg-config --libs xext xinerama x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext` 
 
 #CFLAGS+=-g
 OTHERFILES=README CHANGELIST COPYRIGHT \
