@@ -753,7 +753,7 @@ void cmd_drag(char *args) {
   if (args == NULL) {
     button = drag_button;
   } else {
-    int count = sscanf(args, "%d %s", &button, drag_modkeys);
+    int count = sscanf(args, "%d %127s", &button, drag_modkeys);
     if (count == 0) {
       button = 1; /* Default to left mouse button */
       drag_modkeys[0] = '\0';
