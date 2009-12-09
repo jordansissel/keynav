@@ -13,8 +13,14 @@ clean:
 	rm *.o || true;
 	make -C xdotool clean || true
 
-keynav: xdo.o keynav.o
-	gcc $(LDFLAGS) xdo.o keynav.o -o $@
+keynav: keynav.o
+	@set -x; \
+	if ld -lxdo > /dev/null 2>&1 ; then \
+		gcc $(LDFLAGS) -lxdo keynav.o -o $@; \
+	else \
+		make xdo.o; \
+		gcc $(LDFLAGS) xdo.o keynav.o -o $@; \
+	fi
 
 xdo.o:
 	make -C xdotool xdo.o
