@@ -558,7 +558,7 @@ void cmd_start(char *args) {
   wininfo.pen_size = 1;
   wininfo.center_cut_size = 5;
 
-  if ((appstate & STATE_ACTIVE) == 0) {
+  if (!(appstate & STATE_ACTIVE)) {
     appstate |= STATE_ACTIVE;
     wininfo_history_cursor = 0;
     XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
@@ -622,53 +622,53 @@ void cmd_quit(char *args) {
 }
 
 void cmd_cut_up(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.h = percent_of(wininfo.h, args, .5);
 }
 
 void cmd_cut_down(char *args) {
   int orig = wininfo.h;
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.h = percent_of(wininfo.h, args, .5);
   wininfo.y += orig - wininfo.h;
 }
 
 void cmd_cut_left(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.w = percent_of(wininfo.w, args, .5);
 }
 
 void cmd_cut_right(char *args) {
   int orig = wininfo.w;
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.w = percent_of(wininfo.w, args, .5);
   wininfo.x += orig - wininfo.w;
 }
 
 void cmd_move_up(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.y -= percent_of(wininfo.h, args, 1);
 }
 
 void cmd_move_down(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.y += percent_of(wininfo.h, args, 1);
 }
 
 void cmd_move_left(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.x -= percent_of(wininfo.w, args, 1);
 }
 
 void cmd_move_right(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   wininfo.x += percent_of(wininfo.w, args, 1);
 }
@@ -676,7 +676,7 @@ void cmd_move_right(char *args) {
 void cmd_cursorzoom(char *args) {
   int xradius = 0, yradius = 0, width = 0, height = 0;
   int xloc, yloc;
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
 
   sscanf(args, "%d %d %d %d", &xradius, &yradius, &width, &height);
@@ -711,7 +711,7 @@ void cmd_windowzoom(char *args) {
 }
 
 void cmd_warp(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   //printf("Warp\n");
   xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2);
@@ -727,7 +727,7 @@ void cmd_warp(char *args) {
 
 void cmd_click(char *args) {
   int button;
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
 
   button = atoi(args);
@@ -738,7 +738,7 @@ void cmd_click(char *args) {
 }
 
 void cmd_doubleclick(char *args) {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
   cmd_click(args);
   cmd_click(args);
@@ -747,7 +747,7 @@ void cmd_doubleclick(char *args) {
 void cmd_drag(char *args) {
   int button;
 
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
 
   if (args == NULL) {
@@ -849,7 +849,7 @@ void cmd_cell_select(char *args) {
 }
 
 void update() {
-  if (appstate & STATE_ACTIVE == 0)
+  if (!(appstate & STATE_ACTIVE))
     return;
 
   //printf("x: %d %d\n", wininfo.x, viewports[wininfo.curviewport].x);
