@@ -1,3 +1,13 @@
+20091208:
+  - Support linking against libxdo.so if it is found, otherwise we build xdo.o
+    into keynav. The original intent of including xdotool in the release package
+    was to make make it easy to build keynav without a packaging system. Now
+    that more distros have keynav and xdotool, this requirement is less
+    important.
+
+    This change is in response to Debian rqeuest: 
+      http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=560103
+
 20091108:
   - Added xinerama support.
     * Default 'start' will now only be fullscreen on your current xinerama
