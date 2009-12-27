@@ -30,16 +30,20 @@ extern char *symbol_map[];
 
 extern char **environ;
 
-static Display *dpy;
-static Window zone;
-static xdo_t *xdo;
-static int appstate = 0;
+#define ISACTIVE (appstate.active)
+#define ISDRAGGING (appstate.dragging)
+struct appstate {
+  int active;
+  int dragging;
+};
 
-static int drag_button = 0;
-static char drag_modkeys[128];
-
-#define STATE_ACTIVE 0x0001 
-#define STATE_DRAGGING 0x0002
+typedef struct colors {
+  XColor red;
+  XColor white;
+  XColor dummy;
+  Colormap colormap;
+  GC gc;
+} colors_t;
 
 typedef struct wininfo {
   int x;
@@ -60,6 +64,7 @@ typedef struct viewport {
   int w;
   int h;
   int screen_num;
+  Screen *screen;
   Window root;
 } viewport_t;
 
@@ -67,6 +72,16 @@ static wininfo_t wininfo;
 static viewport_t *viewports;
 static int nviewports = 0;
 static int xinerama = 0;
+
+static Display *dpy;
+static Window zone;
+static xdo_t *xdo;
+static struct appstate appstate = { 0, 0 };
+static colors_t colors;
+
+static int drag_button = 0;
+static char drag_modkeys[128];
+
 
 /* history tracking */
 #define WININFO_MAXHIST (100)
@@ -119,7 +134,10 @@ void sigchld(int sig);
 struct dispatch {
   char *command;
   void (*func)(char *args);
-} dispatch[] = {
+};
+typedef struct dispatch dispatch_t;
+
+dispatch_t dispatch[] = {
   "cut-up", cmd_cut_up,
   "cut-down", cmd_cut_down,
   "cut-left", cmd_cut_left,
@@ -433,9 +451,9 @@ int percent_of(int num, char *args, float default_val) {
 
 GC creategc(Window win) {
   GC gc;
-  XGCValues values;
+  XGCValues gcv;
 
-  gc = XCreateGC(dpy, win, 0, &values);
+  gc = XCreateGC(dpy, win, 0, NULL);
   XSetForeground(dpy, gc, BlackPixel(dpy, 0));
   XSetBackground(dpy, gc, WhitePixel(dpy, 0));
   XSetFillStyle(dpy, gc, FillSolid);
@@ -444,31 +462,23 @@ GC creategc(Window win) {
 }
 
 void drawgrid(Window win, struct wininfo *info, int apply_clip) {
-  GC gc;
   XRectangle clip[30];
   int idx = 0;
-  Colormap colormap;
-  XColor red, unused_xcolor;
-  XColor white;
   int w = info->w;
   int h = info->h;
   int cell_width;
   int cell_height;
   int i;
 
-  gc = creategc(win);
-  colormap = DefaultColormap(dpy, 0);
-
-  XAllocNamedColor(dpy, colormap, "darkred", &red, &unused_xcolor);
-  XSetLineAttributes(dpy, gc, info->pen_size, LineSolid, CapButt, JoinBevel);
+  XSetLineAttributes(dpy, colors.gc,
+                     info->pen_size,LineSolid, CapButt, JoinBevel);
 
   // Fill it red.
-  XSetForeground(dpy, gc, red.pixel);
-  XFillRectangle(dpy, win, gc, 0, 0, w, h);
+  XSetForeground(dpy, colors.gc, colors.red.pixel);
+  XFillRectangle(dpy, win, colors.gc, 1, 0, w, h);
 
   // Draw white lines.
-  XSetForeground(dpy, gc, WhitePixel(dpy, 0));
-
+  XSetForeground(dpy, colors.gc, WhitePixel(dpy, 0));
 
   /*left*/ 
   clip[idx].x = 0;
@@ -521,7 +531,6 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
 
   if (apply_clip) {
     XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
-
     /* Cut out a hole in the center */
     clip[idx].x = (w/2 - (info->center_cut_size/2));
     clip[idx].y = (h/2 - (info->center_cut_size/2));
@@ -533,9 +542,8 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
   }
 
   for (i = 0; i < idx; i++) {
-    drawborderline(info, win, gc, &(clip[i]));
-  }
-}
+    drawborderline(info, win, colors.gc, &(clip[i]));
+  } }
 
 void cmd_start(char *args) {
   XSetWindowAttributes winattr;
@@ -558,16 +566,21 @@ void cmd_start(char *args) {
   wininfo.pen_size = 1;
   wininfo.center_cut_size = 5;
 
-  if (!(appstate & STATE_ACTIVE)) {
-    appstate |= STATE_ACTIVE;
+  if (!ISACTIVE) {
+    int depth;
+    depth = viewports[wininfo.curviewport].screen->root_depth;
+    appstate.active = True;
     wininfo_history_cursor = 0;
     XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
                   GrabModeAsync, GrabModeAsync, CurrentTime);
+    //XGrabServer(dpy);
 
     zone = XCreateSimpleWindow(dpy, viewports[wininfo.curviewport].root,
                                wininfo.x, wininfo.y, 1, 1, 0, 
-                               BlackPixel(dpy, 0), WhitePixel(dpy, 0));
+                               ((unsigned long) 1) << depth - 1,
+                               ((unsigned long) 1) << depth - 1);
 
+    colors.gc = creategc(zone);
     /* Tell the window manager not to manage us */
     winattr.override_redirect = 1;
     XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
@@ -576,21 +589,22 @@ void cmd_start(char *args) {
 }
 
 void cmd_end(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
 
-  appstate &= ~(STATE_ACTIVE);
+  appstate.active = False;
 
   /* kill drag state too */
-  if (appstate & STATE_DRAGGING)
+  if (ISDRAGGING)
     cmd_drag(NULL);
 
   XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
+  //XUngrabServer(dpy);
 }
 
 void cmd_history_back(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
 
   restore_history_point(1);
@@ -622,53 +636,54 @@ void cmd_quit(char *args) {
 }
 
 void cmd_cut_up(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.h = percent_of(wininfo.h, args, .5);
 }
 
 void cmd_cut_down(char *args) {
-  int orig = wininfo.h;
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
+
+  int orig = wininfo.h;
   wininfo.h = percent_of(wininfo.h, args, .5);
   wininfo.y += orig - wininfo.h;
 }
 
 void cmd_cut_left(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.w = percent_of(wininfo.w, args, .5);
 }
 
 void cmd_cut_right(char *args) {
   int orig = wininfo.w;
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.w = percent_of(wininfo.w, args, .5);
   wininfo.x += orig - wininfo.w;
 }
 
 void cmd_move_up(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.y -= percent_of(wininfo.h, args, 1);
 }
 
 void cmd_move_down(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.y += percent_of(wininfo.h, args, 1);
 }
 
 void cmd_move_left(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.x -= percent_of(wininfo.w, args, 1);
 }
 
 void cmd_move_right(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   wininfo.x += percent_of(wininfo.w, args, 1);
 }
@@ -676,7 +691,7 @@ void cmd_move_right(char *args) {
 void cmd_cursorzoom(char *args) {
   int xradius = 0, yradius = 0, width = 0, height = 0;
   int xloc, yloc;
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
 
   sscanf(args, "%d %d %d %d", &xradius, &yradius, &width, &height);
@@ -701,8 +716,8 @@ void cmd_windowzoom(char *args) {
   xdo_window_get_active(xdo, &curwin);
   XGetGeometry(xdo->xdpy, curwin, &rootwin, &x, &y, &width, &height,
                &border_width, &depth);
-  XTranslateCoordinates(xdo->xdpy, curwin, rootwin, -border_width, -border_width,
-                        &x, &y, &dummy_win);
+  XTranslateCoordinates(xdo->xdpy, curwin, rootwin, 
+                        -border_width, -border_width, &x, &y, &dummy_win);
 
   wininfo.x = x;
   wininfo.y = y;
@@ -711,25 +726,16 @@ void cmd_windowzoom(char *args) {
 }
 
 void cmd_warp(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
-  //printf("Warp\n");
   xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2);
-
-  /* Some apps (window managers) don't acknowledge a drag unless there's been
-   * some wiggle. Let's wiggle if we're dragging. */
-  //if (appstate & STATE_DRAGGING) {
-    //xdo_mousemove_relative(xdo, 1, 1);
-    //xdo_mousemove_relative(xdo, -1, 0);
-    //xdo_mousemove_relative(xdo, 0, -1);
-  //}
 }
 
 void cmd_click(char *args) {
-  int button;
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
 
+  int button;
   button = atoi(args);
   if (button > 0)
     xdo_click(xdo, button);
@@ -738,18 +744,17 @@ void cmd_click(char *args) {
 }
 
 void cmd_doubleclick(char *args) {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
   cmd_click(args);
   cmd_click(args);
 }
 
 void cmd_drag(char *args) {
-  int button;
-
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
 
+  int button;
   if (args == NULL) {
     button = drag_button;
   } else {
@@ -760,7 +765,6 @@ void cmd_drag(char *args) {
     } else if (count == 1) {
       drag_modkeys[0] = '\0';
     }
-    //printf("modkeys: %s\n", drag_modkeys);
   }
 
   if (button <= 0) {
@@ -770,16 +774,16 @@ void cmd_drag(char *args) {
 
   drag_button = button;
 
-  if (appstate & STATE_DRAGGING) { /* End dragging */
-    appstate &= ~(STATE_DRAGGING);
+  if (ISDRAGGING) { /* End dragging */
+    appstate.dragging = False;
     xdo_mouseup(xdo, button);
   } else { /* Start dragging */
-    appstate |= STATE_DRAGGING;
+    appstate.dragging = True;
     xdo_keysequence_down(xdo, 0, drag_modkeys);
-    //printf("down: %s\n", drag_modkeys);
     xdo_mousedown(xdo, button);
 
     /* Sometimes we need to move a little to tell the app we're dragging */
+    /* TODO(sissel): Make this a 'mousewiggle' command */
     xdo_mousemove_relative(xdo, 1, 0);
     xdo_mousemove_relative(xdo, -1, 0);
     xdo_keysequence_up(xdo, 0, drag_modkeys);
@@ -849,7 +853,7 @@ void cmd_cell_select(char *args) {
 }
 
 void update() {
-  if (!(appstate & STATE_ACTIVE))
+  if (!ISACTIVE)
     return;
 
   //printf("x: %d %d\n", wininfo.x, viewports[wininfo.curviewport].x);
@@ -880,8 +884,9 @@ void update() {
     return;
   }
 
-  XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
   drawgrid(zone, &wininfo, True);
+  XFlush(dpy);
+  XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
   XMapRaised(dpy, zone);
 }
 
@@ -1022,7 +1027,7 @@ void handle_commands(char *commands) {
         found = 1;
         dispatch[i].func(args);
 
-        if (appstate & STATE_DRAGGING)
+        if (ISDRAGGING)
           cmd_warp(NULL);
       }
     }
@@ -1030,7 +1035,7 @@ void handle_commands(char *commands) {
     if (!found)
       fprintf(stderr, "No such command: '%s'\n", tok);
   }
-  if (appstate & STATE_ACTIVE) {
+  if (ISACTIVE) {
     update();
     save_history_point();
   }
@@ -1039,7 +1044,6 @@ void handle_commands(char *commands) {
 }
 
 void save_history_point() {
-
   /* If the history is full, drop the oldest entry */
   while (wininfo_history_cursor >= WININFO_MAXHIST) {
     int i;
@@ -1068,6 +1072,9 @@ void restore_history_point(int moves_ago) {
          sizeof(wininfo));
 }
 
+/* Sort viewports, left to right.
+ * This may perform undesirably for vertically-stacked viewports or
+ * for other odd configurations */
 int viewport_sort(const void *a, const void *b) {
   viewport_t *va = (viewport_t *)a;
   viewport_t *vb = (viewport_t *)b;
@@ -1099,6 +1106,8 @@ void query_screen_xinerama() {
     viewports[i].y = screeninfo[i].y_org;
     viewports[i].w = screeninfo[i].width;
     viewports[i].h = screeninfo[i].height;
+    viewports[i].screen_num = 0;
+    viewports[i].screen = ScreenOfDisplay(dpy, 0);
     viewports[i].root = DefaultRootWindow(dpy);
   }
 }
@@ -1116,6 +1125,8 @@ void query_screen_normal() {
     viewports[i].w = s->width;
     viewports[i].h = s->height;
     viewports[i].root = RootWindowOfScreen(s);
+    viewports[i].screen_num = i;
+    viewports[i].screen = s;
   }
 }
 
@@ -1205,9 +1216,15 @@ int main(int argc, char **argv) {
   /* Parse config */
   parse_config();
   query_screens();
+  colors.colormap = DefaultColormap(dpy, 0);
+  XAllocNamedColor(dpy, colors.colormap, "darkred", &colors.red, &colors.dummy);
 
-  if (argc > 1) {
+  if (argc == 2) {
     handle_commands(argv[1]);
+  } else if (argc > 2) {
+    fprintf(stderr, "Usage: %s [command string]\n", argv[0]);
+    fprintf(stderr, "Did you quote your command string?\n");
+    exit(1);
   }
 
   while (1) {
@@ -1221,7 +1238,8 @@ int main(int argc, char **argv) {
       // Map and Configure events mean the window was changed or is now mapped.
       case MapNotify:
       case ConfigureNotify:
-        update();
+        //update();
+        drawgrid(zone, &wininfo, False);
         break;
 
       case Expose:
@@ -1234,7 +1252,7 @@ int main(int argc, char **argv) {
       case UnmapNotify:
         break;
       default:
-        printf("Event: %d\n", e.type);
+        printf("Unexpected X11 event: %d\n", e.type);
         break;
     }
   }
