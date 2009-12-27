@@ -2,7 +2,6 @@
  * Visual user-directed binary or grid search for something to point your mouse
  * at.
  *
- * TODO:
  * XXX: Merge 'wininfo' and 'wininfo_history'. The latest history entry is the
  *      same as wininfo, so use that instead.
  */
@@ -92,7 +91,7 @@ void cmd_move_right(char *args);
 void cmd_move_up(char *args);
 void cmd_cursorzoom(char *args);
 void cmd_windowzoom(char *args);
-void cmd_quit(char *args); /* XXX: Is this even necessary? */
+void cmd_quit(char *args);
 void cmd_shell(char *args);
 void cmd_start(char *args);
 void cmd_warp(char *args);
@@ -321,7 +320,7 @@ void defaults() {
   char *default_config[] = {
     "ctrl+semicolon start",
     "Escape end",
-    "ctrl+bracketleft end", /* for vi people who use */
+    "ctrl+bracketleft end", /* for vi people who use ^[ */
     "h cut-left",
     "j cut-down",
     "k cut-up",
@@ -396,6 +395,7 @@ void parse_config_line(char *line) {
   keyseq = strdup(strtok_r(line, " ", &tokctx));
   commands = strdup(tokctx);
 
+  /* A special config option that will clear all keybindings */
   if (strcmp(keyseq, "clear") == 0) {
     /* Reset keybindings */
     free(keybindings);
@@ -967,6 +967,8 @@ void handle_keypress(XKeyEvent *e) {
    * then the 'mods' will include values like Button1Mask. 
    * Let's remove those, as they cause breakage */
   e->state &= ~(Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask);
+
+  /* Ignore LockMask (Numlock, etc) and Mod2Mask (shift, etc) */
   e->state &= ~(LockMask | Mod2Mask);
 
   /* Loop over known keybindings */
@@ -976,7 +978,6 @@ void handle_keypress(XKeyEvent *e) {
     int mods = keybindings[i].mods;
     char *commands = keybindings[i].commands;
     if ((keycode == e->keycode) && (mods == e->state)) {
-      //printf("Calling '%s' from %d/%d\n", commands, keycode, mods);
       handle_commands(commands);
     }
   }
@@ -1002,7 +1003,7 @@ void handle_commands(char *commands) {
       /* XXX: This approach means we can't have one command be a subset of
        * another. For example, 'grid' and 'grid-foo' will fail because when you
        * use 'grid-foo' it'll match 'grid' first. 
-       * I don't care about this yet.
+       * This hasn't been a problem yet...
        */
 
       /* If this command starts with a dispatch function, call it */
@@ -1194,17 +1195,20 @@ int main(int argc, char **argv) {
   }
 
   if ( (dpy = XOpenDisplay(pcDisplay)) == NULL) {
-    fprintf(stderr, "Error: Can't open display: %s", pcDisplay);
+    fprintf(stderr, "Error: Can't open display: %s\n", pcDisplay);
     exit(1);
   }
 
   signal(SIGCHLD, sigchld);
   xdo = xdo_new_with_opened_display(dpy, pcDisplay, False);
 
-
   /* Parse config */
   parse_config();
   query_screens();
+
+  if (argc > 1) {
+    handle_commands(argv[1]);
+  }
 
   while (1) {
     XEvent e;
