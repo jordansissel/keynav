@@ -58,6 +58,11 @@ typedef struct wininfo {
   int curviewport;
 } wininfo_t;
 
+typedef struct mouseinfo {
+  int x;
+  int y;
+} mouseinfo_t;
+
 typedef struct viewport {
   int x;
   int y;
@@ -69,6 +74,7 @@ typedef struct viewport {
 } viewport_t;
 
 static wininfo_t wininfo;
+static mouseinfo_t mouseinfo;
 static viewport_t *viewports;
 static int nviewports = 0;
 static int xinerama = 0;
@@ -461,7 +467,7 @@ GC creategc(Window win) {
   return gc;
 }
 
-void drawgrid(Window win, struct wininfo *info, int apply_clip) {
+void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   XRectangle clip[30];
   int idx = 0;
   int w = info->w;
@@ -469,16 +475,6 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
   int cell_width;
   int cell_height;
   int i;
-
-  XSetLineAttributes(dpy, colors.gc,
-                     info->pen_size,LineSolid, CapButt, JoinBevel);
-
-  // Fill it red.
-  XSetForeground(dpy, colors.gc, colors.red.pixel);
-  XFillRectangle(dpy, win, colors.gc, 1, 0, w, h);
-
-  // Draw white lines.
-  XSetForeground(dpy, colors.gc, WhitePixel(dpy, 0));
 
   /*left*/ 
   clip[idx].x = 0;
@@ -531,6 +527,7 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
 
   if (apply_clip) {
     XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
+
     /* Cut out a hole in the center */
     clip[idx].x = (w/2 - (info->center_cut_size/2));
     clip[idx].y = (h/2 - (info->center_cut_size/2));
@@ -539,11 +536,33 @@ void drawgrid(Window win, struct wininfo *info, int apply_clip) {
     idx++;
 
     XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
-  }
 
-  for (i = 0; i < idx; i++) {
-    drawborderline(info, win, colors.gc, &(clip[i]));
-  } }
+    /* Cut out where the mouse is */
+    clip[idx].x = (mouseinfo.x - wininfo.x) - 10;
+    clip[idx].y = (mouseinfo.y - wininfo.y) - 10;
+    clip[idx].width = 20;
+    clip[idx].height = 20;
+    idx++;
+
+    XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
+  } /* if apply_clip */
+
+  if (draw) {
+    XSetLineAttributes(dpy, colors.gc,
+                       info->pen_size,LineSolid, CapButt, JoinBevel);
+
+    // Fill it red.
+    XSetForeground(dpy, colors.gc, colors.red.pixel);
+    XFillRectangle(dpy, win, colors.gc, 1, 0, w, h);
+
+    // Draw white lines.
+    XSetForeground(dpy, colors.gc, WhitePixel(dpy, 0));
+
+    for (i = 0; i < idx; i++) {
+      drawborderline(info, win, colors.gc, &(clip[i]));
+    }
+  } /* if draw */
+}
 
 void cmd_start(char *args) {
   XSetWindowAttributes winattr;
@@ -584,7 +603,8 @@ void cmd_start(char *args) {
     /* Tell the window manager not to manage us */
     winattr.override_redirect = 1;
     XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
-    XSelectInput(dpy, zone, StructureNotifyMask | ExposureMask);
+    XSelectInput(dpy, zone, 
+                 StructureNotifyMask | ExposureMask | PointerMotionMask);
   }
 }
 
@@ -884,7 +904,7 @@ void update() {
     return;
   }
 
-  drawgrid(zone, &wininfo, True);
+  updategrid(zone, &wininfo, True, True);
   XFlush(dpy);
   XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
   XMapRaised(dpy, zone);
@@ -1239,11 +1259,17 @@ int main(int argc, char **argv) {
       case MapNotify:
       case ConfigureNotify:
         //update();
-        drawgrid(zone, &wininfo, False);
+        updategrid(zone, &wininfo, False, True);
         break;
 
       case Expose:
-        drawgrid(zone, &wininfo, False);
+        updategrid(zone, &wininfo, False, True);
+        break;
+
+      case MotionNotify:
+        mouseinfo.x = e.xmotion.x_root;
+        mouseinfo.y = e.xmotion.y_root;
+        updategrid(zone, &wininfo, True, False);
         break;
 
       // Ignorable events.
