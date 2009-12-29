@@ -334,6 +334,7 @@ void parse_config() {
       free(rcfile);
       return;
     }
+    free(rcfile);
   }
   fprintf(stderr, "No ~/.keynavrc found.\n");
 }
