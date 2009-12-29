@@ -538,10 +538,11 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
 
     /* Cut out where the mouse is */
-    clip[idx].x = (mouseinfo.x - wininfo.x) - 10;
-    clip[idx].y = (mouseinfo.y - wininfo.y) - 10;
-    clip[idx].width = 20;
-    clip[idx].height = 20;
+    int mousecut = 1; /* try 1 pixel cut */
+    clip[idx].x = (mouseinfo.x - wininfo.x) - (mousecut / 2);
+    clip[idx].y = (mouseinfo.y - wininfo.y) - (mousecut / 2);
+    clip[idx].width = mousecut;
+    clip[idx].height = mousecut;
     idx++;
 
     XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 1, 1, ShapeSubtract, 0);
