@@ -81,6 +81,7 @@ static int xinerama = 0;
 
 static Display *dpy;
 static Window zone;
+static Pixmap canvas;
 static xdo_t *xdo;
 static struct appstate appstate = { 0, 0 };
 static colors_t colors;
@@ -456,11 +457,11 @@ int percent_of(int num, char *args, float default_val) {
 }
 
 
-GC creategc(Window win) {
+GC creategc(Drawable drawable) {
   GC gc;
   XGCValues gcv;
 
-  gc = XCreateGC(dpy, win, 0, NULL);
+  gc = XCreateGC(dpy, drawable, 0, NULL);
   XSetForeground(dpy, gc, BlackPixel(dpy, 0));
   XSetBackground(dpy, gc, WhitePixel(dpy, 0));
   XSetFillStyle(dpy, gc, FillSolid);
@@ -555,14 +556,17 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
     // Fill it red.
     XSetForeground(dpy, colors.gc, colors.red.pixel);
-    XFillRectangle(dpy, win, colors.gc, 1, 0, w, h);
+    XFillRectangle(dpy, canvas, colors.gc, 0, 0, w, h);
 
     // Draw white lines.
     XSetForeground(dpy, colors.gc, WhitePixel(dpy, 0));
 
     for (i = 0; i < idx; i++) {
-      drawborderline(info, win, colors.gc, &(clip[i]));
+      drawborderline(info, canvas, colors.gc, &(clip[i]));
     }
+
+    XCopyArea(dpy, canvas, win, colors.gc, 0, 0, /* wininfo.x, wininfo.y,  */
+              wininfo.w, wininfo.h, 0, 0);
   } /* if draw */
 }
 
@@ -600,11 +604,17 @@ void cmd_start(char *args) {
                                wininfo.x, wininfo.y, 1, 1, 0, 
                                ((unsigned long) 1) << depth - 1,
                                ((unsigned long) 1) << depth - 1);
+    canvas = XCreatePixmap(dpy, zone,
+                           viewports[wininfo.curviewport].w,
+                           viewports[wininfo.curviewport].h,
+                           viewports[wininfo.curviewport].screen->root_depth);
 
-    colors.gc = creategc(zone);
+    colors.gc = creategc(canvas);
+
     /* Tell the window manager not to manage us */
     winattr.override_redirect = 1;
     XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
+
     XSelectInput(dpy, zone, 
                  StructureNotifyMask | ExposureMask | PointerMotionMask);
   }
@@ -907,7 +917,6 @@ void update() {
   }
 
   updategrid(zone, &wininfo, True, True);
-  XFlush(dpy);
   XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
   XMapRaised(dpy, zone);
 }
@@ -938,8 +947,6 @@ void viewport_right() {
   }
   wininfo.x = viewports[wininfo.curviewport].x;
   //wininfo.y = viewports[wininfo.curviewport].y;
-
-  //printf("right: %d,%d %d,%d\n", wininfo.x, wininfo.y, wininfo.w, wininfo.h);
 }
 
 void viewport_left() {
@@ -967,19 +974,18 @@ void viewport_left() {
   }
   wininfo.x = viewports[wininfo.curviewport].w - wininfo.w;
   //wininfo.y = viewports[wininfo.curviewport].h - wininfo.h;
-
-  //printf("Left: %d,%d %d,%d\n", wininfo.x, wininfo.y, wininfo.w, wininfo.h);
 }
 
-void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *rect) {
+void drawborderline(struct wininfo *info, Drawable drawable,
+                    GC gc, XRectangle *rect) {
   int penoffset = ((info->border_thickness / 2) - (info->pen_size / 2));
-  XDrawLine(dpy, win, gc,
+  XDrawLine(dpy, drawable, gc,
             (rect->x + (rect->width / 2)),
             (rect->y + penoffset),
             (rect->x + (rect->width / 2)),
             ((rect->y + rect->height) - (penoffset*2))
            );
-  XDrawLine(dpy, win, gc,
+  XDrawLine(dpy, drawable, gc,
             (rect->x + penoffset),
             (rect->y + (rect->height / 2)),
             (rect->x + rect->width - penoffset),
@@ -1260,12 +1266,14 @@ int main(int argc, char **argv) {
       // Map and Configure events mean the window was changed or is now mapped.
       case MapNotify:
       case ConfigureNotify:
-        //update();
         updategrid(zone, &wininfo, False, True);
         break;
 
       case Expose:
-        updategrid(zone, &wininfo, False, True);
+        XCopyArea(dpy, canvas, zone, colors.gc, e.xexpose.x, e.xexpose.y,
+                  e.xexpose.width, e.xexpose.height,
+                  e.xexpose.x, e.xexpose.y);
+
         break;
 
       case MotionNotify:
@@ -1275,6 +1283,7 @@ int main(int argc, char **argv) {
         break;
 
       // Ignorable events.
+      case NoExpose:
       case KeyRelease:
       case DestroyNotify:
       case UnmapNotify:
