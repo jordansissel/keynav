@@ -78,6 +78,7 @@ static mouseinfo_t mouseinfo;
 static viewport_t *viewports;
 static int nviewports = 0;
 static int xinerama = 0;
+static int daemonize = 0;
 
 static Display *dpy;
 static Window zone;
@@ -88,7 +89,6 @@ static colors_t colors;
 
 static int drag_button = 0;
 static char drag_modkeys[128];
-
 
 /* history tracking */
 #define WININFO_MAXHIST (100)
@@ -202,7 +202,7 @@ int parse_keycode(char *keyseq) {
 
   keysym = XStringToKeysym(last_tok);
   if (keysym == NoSymbol)
-    fprintf(stderr, "No kesym found for %s\n", last_tok);
+    fprintf(stderr, "No keysym found for %s\n", last_tok);
   keycode = XKeysymToKeycode(dpy, keysym);
   if (keycode == 0)
     fprintf(stderr, "Unable to lookup keycode for %s\n", last_tok);
@@ -428,8 +428,9 @@ void parse_config_line(char *line) {
     nkeybindings = 0;
     keybindings_size = 10;
     keybindings = malloc(keybindings_size * sizeof(struct keybinding));
-  }
-  else {
+  } else if (strcmp(keyseq, "daemonize") == 0) {
+    daemonize = 1;
+  } else {
     keycode = parse_keycode(keyseq);
     mods = parse_mods(keyseq);
 
@@ -1240,11 +1241,20 @@ int main(int argc, char **argv) {
   signal(SIGCHLD, sigchld);
   xdo = xdo_new_with_opened_display(dpy, pcDisplay, False);
 
-  /* Parse config */
   parse_config();
   query_screens();
   colors.colormap = DefaultColormap(dpy, 0);
   XAllocNamedColor(dpy, colors.colormap, "darkred", &colors.red, &colors.dummy);
+
+  /* Sync with the X server.
+   * This ensure we errors about XGrabKey and other failures
+   * before we try to daemonize */
+  XSync(dpy, 0);
+
+  if (daemonize) {
+    printf("Daemonizing now...\n");
+    daemon(0, 0);
+  }
 
   if (argc == 2) {
     handle_commands(argv[1]);
@@ -1257,6 +1267,7 @@ int main(int argc, char **argv) {
   while (1) {
     XEvent e;
     XNextEvent(dpy, &e);
+
     switch (e.type) {
       case KeyPress:
         handle_keypress((XKeyEvent *)&e);

@@ -4,6 +4,12 @@
 # Lines beginning with '#' are comments.
 # Format is:
 #   keysequence cmd1,cmd2,cmd3...
+#
+# Other special values are:
+#   'clear' on a line by itself (no quotes) will erase all keybindings
+#   (including the defaults)
+#   'daemonize' on a line by itself (no quotes) will make keynav background
+#   after parsing the configfile and having no critical errors.
 # 
 # The 'start' command alone is handled specially, in that any key sequence
 # mapped to 'start' will be grabbed when keynav starts up so you can invoke it
@@ -11,6 +17,7 @@
 # active
 #
 # Project page; http://www.semicomplete.com/projects/keynav
+
 
 ctrl+semicolon start
 Escape end
