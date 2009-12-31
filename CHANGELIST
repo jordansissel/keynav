@@ -1,3 +1,6 @@
+20091231.02:
+  - Nonfunctional bug fixes and other code cleanup from patches by Russell Harmon
+
 20091231.01:
   - Some internal code refactor/cleanup
   - Reduce drawing flicker by drawing to a Pixmap and blitting to the window.
