@@ -1,4 +1,4 @@
-20091231.00:
+20091231.01:
   - Some internal code refactor/cleanup
   - Reduce drawing flicker by drawing to a Pixmap and blitting to the window.
   - Allow commands to be given on keynav startup. (Reported by Colin Shea)
@@ -7,7 +7,7 @@
   - Allow clicking through the keynav grid window area (Reported by Yuri D'Elia)
   - Support daemonizing using the 'daemonize' command in keynavrc. Added an
     example to the distributed keynavrc.
-  - Use new library features given by xdotool/libxdo 20091231.00
+  - Use new library features given by xdotool/libxdo 20091231.01
 
 20091208:
   - Support linking against libxdo.so if it is found, otherwise we build xdo.o
