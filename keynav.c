@@ -24,6 +24,10 @@
 
 #include <xdo.h>
 
+#ifndef GLOBAL_CONFIG_FILE
+#define GLOBAL_CONFIG_FILE "/etc/keynavrc"
+#endif /* GLOBAL_CONFIG_FILE */
+
 extern char **environ;
 
 #define ISACTIVE (appstate.active)
@@ -306,6 +310,22 @@ void addbinding(int keycode, int mods, char *commands) {
   }
 }
 
+void parse_config_file(const char* file) {
+  FILE *fp = NULL;
+#define LINEBUF_SIZE 512
+  char line[LINEBUF_SIZE];
+  fp = fopen(file, "r");
+  if (fp != NULL) {
+    /* fopen succeeded */
+    while (fgets(line, LINEBUF_SIZE, fp) != NULL) {
+      /* Kill the newline */
+      *(line + strlen(line) - 1) = '\0';
+      parse_config_line(line);
+    }
+    fclose(fp);
+  }
+}
+
 void parse_config() {
   char *homedir;
 
@@ -313,28 +333,15 @@ void parse_config() {
 
   defaults();
 
+  parse_config_file(GLOBAL_CONFIG_FILE);
   homedir = getenv("HOME");
 
   if (homedir != NULL) {
     char *rcfile = NULL;
-    FILE *fp = NULL;
-#define LINEBUF_SIZE 512
-    char line[LINEBUF_SIZE];
     asprintf(&rcfile, "%s/.keynavrc", homedir);
-    fp = fopen(rcfile, "r");
-    if (fp != NULL) {
-      /* fopen succeeded */
-      while (fgets(line, LINEBUF_SIZE, fp) != NULL) {
-        /* Kill the newline */
-        *(line + strlen(line) - 1) = '\0';
-        parse_config_line(line);
-      }
-      free(rcfile);
-      return;
-    }
+    parse_config_file(rcfile);
     free(rcfile);
   }
-  fprintf(stderr, "No ~/.keynavrc found.\n");
 }
 
 void defaults() {
