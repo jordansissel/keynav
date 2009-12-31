@@ -13,13 +13,15 @@ clean:
 	rm *.o || true;
 	make -C xdotool clean || true
 
+# We'll try to detect 'libxdo' and use it if we find it.
+# otherwise, build monolithic.
 keynav: keynav.o
 	@set -x; \
-	if ld -lxdo > /dev/null 2>&1 ; then \
-		gcc $(LDFLAGS) -lxdo keynav.o -o $@; \
+	if $(LD) -lxdo > /dev/null 2>&1 ; then \
+		$(CC) $(LDFLAGS) -lxdo keynav.o -o $@; \
 	else \
 		make xdo.o; \
-		gcc $(LDFLAGS) xdo.o keynav.o -o $@; \
+		$(CC) $(LDFLAGS) xdo.o keynav.o -o $@; \
 	fi
 
 xdo.o:

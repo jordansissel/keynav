@@ -22,11 +22,7 @@
 #include <X11/extensions/shape.h>
 #include <X11/extensions/Xinerama.h>
 
-#include "xdotool/xdo.h"
-
-/* These come from xdo.o */
-extern keysymcharmap_t keysymcharmap[];
-extern char *symbol_map[];
+#include <xdo.h>
 
 extern char **environ;
 
@@ -242,6 +238,7 @@ int parse_mods(char *keyseq) {
   int i = 0;
   int j = 0;
   /* Use all but the last token as modifiers */
+  const char **symbol_map = xdo_symbol_map();
   for (i = 0; i < nmods; i++) {
     char *mod = mods[i];
     KeySym keysym = 0;

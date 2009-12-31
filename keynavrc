@@ -18,6 +18,8 @@
 #
 # Project page; http://www.semicomplete.com/projects/keynav
 
+clear
+daemonize
 
 ctrl+semicolon start
 Escape end
