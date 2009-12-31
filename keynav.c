@@ -244,7 +244,7 @@ int parse_mods(char *keyseq) {
   /* Use all but the last token as modifiers */
   const char **symbol_map = xdo_symbol_map();
   for (i = 0; i < nmods; i++) {
-    char *mod = mods[i];
+    const char *mod = mods[i];
     KeySym keysym = 0;
 
     //printf("mod: keysym for %s = %d\n", mod, keysym);
@@ -271,6 +271,7 @@ int parse_mods(char *keyseq) {
   }
 
   free(dup);
+  free(mods);
   return modmask;
 }
 
@@ -1142,6 +1143,7 @@ void query_screen_xinerama() {
     viewports[i].screen = ScreenOfDisplay(dpy, 0);
     viewports[i].root = DefaultRootWindow(dpy);
   }
+  XFree(screeninfo);
 }
 
 void query_screen_normal() {
