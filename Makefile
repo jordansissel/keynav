@@ -21,10 +21,10 @@ clean:
 keynav: keynav.o
 	@set -x; \
 	if $(LD) -lxdo > /dev/null 2>&1 ; then \
-		$(CC) $(LDFLAGS) -lxdo keynav.o -o $@; \
+		$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
 	else \
 		$(MAKE) xdo.o; \
-		$(CC) $(LDFLAGS) xdo.o keynav.o -o $@; \
+		$(CC) xdo.o keynav.o -o $@ $(LDFLAGS); \
 	fi
 
 xdo.o:
