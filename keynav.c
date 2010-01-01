@@ -618,6 +618,8 @@ void cmd_start(char *args) {
                               GrabModeAsync, GrabModeAsync, CurrentTime);
     while (grabstate != GrabSuccess) {
       usleep(10000); /* sleep for 10ms */
+      grabstate = XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
+                                GrabModeAsync, GrabModeAsync, CurrentTime);
       grabtries += 1;
       if (grabtries >= 20) {
         fprintf(stderr, "XGrabKeyboard failed %d times, giving up...\n",
