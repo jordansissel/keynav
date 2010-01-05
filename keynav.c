@@ -668,7 +668,6 @@ void cmd_end(char *args) {
 
   XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
-  //XUngrabServer(dpy);
 }
 
 void cmd_history_back(char *args) {

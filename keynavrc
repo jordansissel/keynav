@@ -18,8 +18,11 @@
 #
 # Project page; http://www.semicomplete.com/projects/keynav
 
-clear
-daemonize
+# Use 'clear' to blow away any previous keybindings
+#clear
+
+# Use 'daemonize' to background ourselves.
+#daemonize
 
 ctrl+semicolon start
 Escape end
