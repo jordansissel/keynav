@@ -35,6 +35,7 @@ extern char **environ;
 struct appstate {
   int active;
   int dragging;
+  int recording;
 };
 
 typedef struct colors {
@@ -84,7 +85,7 @@ static Display *dpy;
 static Window zone;
 static Pixmap canvas;
 static xdo_t *xdo;
-static struct appstate appstate = { 0, 0 };
+static struct appstate appstate = { 0, 0, 0 };
 static colors_t colors;
 
 static int drag_button = 0;
@@ -117,6 +118,7 @@ void cmd_quit(char *args);
 void cmd_shell(char *args);
 void cmd_start(char *args);
 void cmd_warp(char *args);
+void cmd_record(char *args);
 
 void update();
 void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *clip);
@@ -172,6 +174,7 @@ dispatch_t dispatch[] = {
   "end", cmd_end, 
   "history-back", cmd_history_back,
   "quit", cmd_quit,
+  "record", cmd_record,
   NULL, NULL,
 };
 
@@ -640,6 +643,8 @@ void cmd_start(char *args) {
                                wininfo.x, wininfo.y, 1, 1, 0, 
                                ((unsigned long) 1) << depth - 1,
                                ((unsigned long) 1) << depth - 1);
+    xdo_window_setclass(xdo, zone, "keynav", "keynav");
+
     canvas = XCreatePixmap(dpy, zone,
                            viewports[wininfo.curviewport].w,
                            viewports[wininfo.curviewport].h,
@@ -919,11 +924,23 @@ void cmd_cell_select(char *args) {
   wininfo.y = wininfo.y + (wininfo.h * (x - 1));
 }
 
+void cmd_record(char *args) {
+  if (!ISACTIVE)
+    return;
+
+  if (appstate.recording) {
+    printf("Finish recording\n");
+    appstate.recording = False;
+  } else {
+    printf("Start recording\n");
+    appstate.recording = True;
+  }
+}
+
 void update() {
   if (!ISACTIVE)
     return;
 
-  //printf("x: %d %d\n", wininfo.x, viewports[wininfo.curviewport].x);
   if (wininfo.x < viewports[wininfo.curviewport].x)
     viewport_left();
 
@@ -1066,6 +1083,10 @@ void handle_commands(char *commands) {
       tok++;
 
     strptr = NULL;
+    if (appstate.recording) {
+      printf("Command: %s\n", tok);
+    }
+
     for (i = 0; dispatch[i].command; i++) {
 
       /* XXX: This approach means we can't have one command be a subset of
@@ -1329,6 +1350,7 @@ int main(int argc, char **argv) {
         break;
 
       // Ignorable events.
+      case GraphicsExpose:
       case NoExpose:
       case KeyRelease:
       case DestroyNotify:
