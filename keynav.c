@@ -690,14 +690,12 @@ void cmd_shell(char *args) {
   }
 
   if (fork() == 0) { /* child */
-    char *shell = "/bin/sh";
-    char *argv[4];
     int ret;
-    argv[0] = shell;
-    argv[1] = "-c";
-    argv[2] = args;
-    argv[3] = "\0";
-    ret = execve(shell, argv, environ);
+    char *const shell = "/bin/sh";
+    char *const argv[4] = { shell, "-c", args, NULL };
+    printf("Exec: %s\n", args);
+    printf("Shell: %s\n", shell);
+    ret = execvp(shell, argv);
     perror("execve");
     exit(1);
   }
