@@ -1350,9 +1350,10 @@ int main(int argc, char **argv) {
       // Ignorable events.
       case GraphicsExpose:
       case NoExpose:
-      case KeyRelease:
-      case DestroyNotify:
-      case UnmapNotify:
+      case KeyRelease:    // key was released
+      case DestroyNotify: // window was destroyed
+      case UnmapNotify:   // window was unmapped (hidden)
+      case MappingNotify: // when keyboard mapping changes
         break;
       default:
         printf("Unexpected X11 event: %d\n", e.type);
