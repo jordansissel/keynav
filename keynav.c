@@ -1117,6 +1117,7 @@ void handle_commands(char *commands) {
     if (!found)
       fprintf(stderr, "No such command: '%s'\n", tok);
   }
+
   if (ISACTIVE) {
     update();
     save_history_point();
