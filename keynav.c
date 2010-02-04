@@ -598,45 +598,49 @@ void cmd_start(char *args) {
   wininfo.pen_size = 1;
   wininfo.center_cut_size = 5;
 
-  if (!ISACTIVE) {
-    int depth;
-    int grabstate;
-    int grabtries = 0;
+  if (ISACTIVE)
+    return;
 
-    /* This loop is to work around the following scenario:
-     * xbindkeys invokes XGrabKeyboard when you press a bound keystroke and
-     * doesn't Ungrab until you release a key.
-     * Example: (xbindkey '(Control semicolon) "keynav 'start, grid 2x2'")
-     * This will only invoke XUngrabKeyboard when you release 'semicolon'
-     *
-     * The problem is that keynav would be launched as soon as the keydown
-     * event 'control + semicolon' occurs, but we could only get the grab on
-     * the release.
-     *
-     * This sleepyloop will keep trying to grab the keyboard until it succeeds.
-     *
-     * Reported by Colin Shea
-     */
+  int depth;
+  int grabstate;
+  int grabtries = 0;
+
+  /* This loop is to work around the following scenario:
+   * xbindkeys invokes XGrabKeyboard when you press a bound keystroke and
+   * doesn't Ungrab until you release a key.
+   * Example: (xbindkey '(Control semicolon) "keynav 'start, grid 2x2'")
+   * This will only invoke XUngrabKeyboard when you release 'semicolon'
+   *
+   * The problem is that keynav would be launched as soon as the keydown
+   * event 'control + semicolon' occurs, but we could only get the grab on
+   * the release.
+   *
+   * This sleepyloop will keep trying to grab the keyboard until it succeeds.
+   *
+   * Reported by Colin Shea
+   */
+  grabstate = XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
+                            GrabModeAsync, GrabModeAsync, CurrentTime);
+  while (grabstate != GrabSuccess) {
+    usleep(10000); /* sleep for 10ms */
     grabstate = XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
                               GrabModeAsync, GrabModeAsync, CurrentTime);
-    while (grabstate != GrabSuccess) {
-      usleep(10000); /* sleep for 10ms */
-      grabstate = XGrabKeyboard(dpy, viewports[wininfo.curviewport].root, False,
-                                GrabModeAsync, GrabModeAsync, CurrentTime);
-      grabtries += 1;
-      if (grabtries >= 20) {
-        fprintf(stderr, "XGrabKeyboard failed %d times, giving up...\n",
-                grabtries);
+    grabtries += 1;
+    if (grabtries >= 20) {
+      fprintf(stderr, "XGrabKeyboard failed %d times, giving up...\n",
+              grabtries);
 
-        /* Returning from here will result in the appstate.active still
-         * being false. */
-        return;
-      }
+      /* Returning from here will result in the appstate.active still
+       * being false. */
+      return;
     }
-    //printf("Got grab!\n");
+  }
+  //printf("Got grab!\n");
 
+  appstate.active = True;
+
+  if (zone == 0) { /* Create our window for the first time */
     depth = viewports[wininfo.curviewport].screen->root_depth;
-    appstate.active = True;
     wininfo_history_cursor = 0;
 
     zone = XCreateSimpleWindow(dpy, viewports[wininfo.curviewport].root,
@@ -658,7 +662,7 @@ void cmd_start(char *args) {
 
     XSelectInput(dpy, zone, 
                  StructureNotifyMask | ExposureMask | PointerMotionMask);
-  }
+  } /* if zone == 0 */
 }
 
 void cmd_end(char *args) {
@@ -671,7 +675,8 @@ void cmd_end(char *args) {
   if (ISDRAGGING)
     cmd_drag(NULL);
 
-  XDestroyWindow(dpy, zone);
+  //XDestroyWindow(dpy, zone);
+  XUnmapWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
 }
 
