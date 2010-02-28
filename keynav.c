@@ -803,7 +803,8 @@ void cmd_windowzoom(char *args) {
 void cmd_warp(char *args) {
   if (!ISACTIVE)
     return;
-  xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2);
+  xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2,
+                viewports[wininfo.curviewport].screen_num);
 }
 
 void cmd_click(char *args) {
@@ -813,7 +814,7 @@ void cmd_click(char *args) {
   int button;
   button = atoi(args);
   if (button > 0)
-    xdo_click(xdo, button);
+    xdo_click(xdo, CURRENTWINDOW, button);
   else
     fprintf(stderr, "Negative mouse button is invalid: %d\n", button);
 }
@@ -851,11 +852,11 @@ void cmd_drag(char *args) {
 
   if (ISDRAGGING) { /* End dragging */
     appstate.dragging = False;
-    xdo_mouseup(xdo, button);
+    xdo_mouseup(xdo, CURRENTWINDOW, button);
   } else { /* Start dragging */
     appstate.dragging = True;
     xdo_keysequence_down(xdo, 0, drag_modkeys);
-    xdo_mousedown(xdo, button);
+    xdo_mousedown(xdo, CURRENTWINDOW, button);
 
     /* Sometimes we need to move a little to tell the app we're dragging */
     /* TODO(sissel): Make this a 'mousewiggle' command */
