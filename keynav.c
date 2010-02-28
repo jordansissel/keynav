@@ -721,8 +721,8 @@ void cmd_shell(char *args) {
     int ret;
     char *const shell = "/bin/sh";
     char *const argv[4] = { shell, "-c", args, NULL };
-    printf("Exec: %s\n", args);
-    printf("Shell: %s\n", shell);
+    //printf("Exec: %s\n", args);
+    //printf("Shell: %s\n", shell);
     ret = execvp(shell, argv);
     perror("execve");
     exit(1);
@@ -1081,6 +1081,7 @@ void drawborderline(struct wininfo *info, Drawable drawable,
 
 void handle_keypress(XKeyEvent *e) {
   int i;
+  int key_found = 0;
 
   /* If a mouse button is pressed (like, when we're dragging),
    * then the 'mods' will include values like Button1Mask. 
@@ -1121,8 +1122,13 @@ void handle_keypress(XKeyEvent *e) {
     char *commands = keybindings[i].commands;
     if ((keycode == e->keycode) && (mods == e->state)) {
       handle_commands(commands);
+      key_found = 1;
     }
   }
+
+  /* Break now if this is a normal command */
+  if (key_found)
+    return;
 
   /* Loop over known recordings */
   for (i = nrecordings - 1; i >= 0; i--) {
