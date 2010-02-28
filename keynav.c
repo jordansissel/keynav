@@ -32,11 +32,23 @@ extern char **environ;
 
 #define ISACTIVE (appstate.active)
 #define ISDRAGGING (appstate.dragging)
+
 struct appstate {
   int active;
   int dragging;
-  int recording;
+  enum { record_getkey, record_ing, record_off } recording;
 };
+
+struct recording {
+  int keycode;
+  char **commands;
+  int ncommands;
+  int commands_size;
+};
+
+int nrecordings = 0;
+int recordings_size = 0;
+struct recording *recordings = NULL;
 
 typedef struct colors {
   XColor red;
@@ -85,7 +97,11 @@ static Display *dpy;
 static Window zone;
 static Pixmap canvas;
 static xdo_t *xdo;
-static struct appstate appstate = { 0, 0, 0 };
+static struct appstate appstate = {
+  .active = 0,
+  .dragging = 0,
+  .recording = record_off,
+};
 static colors_t colors;
 
 static int drag_button = 0;
@@ -334,7 +350,9 @@ void parse_config() {
   char *homedir;
 
   keybindings = malloc(keybindings_size * sizeof(struct keybinding));
-  //defaults();
+  recordings_size = 10;
+  nrecordings = 0;
+  recordings = calloc(sizeof(struct recording), recordings_size);
 
   parse_config_file(GLOBAL_CONFIG_FILE);
   homedir = getenv("HOME");
@@ -669,11 +687,16 @@ void cmd_end(char *args) {
   if (!ISACTIVE)
     return;
 
-  appstate.active = False;
-
   /* kill drag state too */
   if (ISDRAGGING)
     cmd_drag(NULL);
+
+  /* Stop recording if we're in that mode */
+  if (appstate.recording != record_off) {
+    cmd_record(NULL);
+  }
+
+  appstate.active = False;
 
   //XDestroyWindow(dpy, zone);
   XUnmapWindow(dpy, zone);
@@ -932,12 +955,19 @@ void cmd_record(char *args) {
   if (!ISACTIVE)
     return;
 
-  if (appstate.recording) {
-    printf("Finish recording\n");
-    appstate.recording = False;
+  if (appstate.recording != record_off) {
+    //printf("Finish recording\n");
+    appstate.recording = record_off;
+
+    /* Bump our recording count */
+    nrecordings++;
+    if (nrecordings >= recordings_size) {
+      recordings_size *= 2;
+      recordings = realloc(recordings, sizeof(struct recording) * recordings_size);
+    }
   } else {
-    printf("Start recording\n");
-    appstate.recording = True;
+    //printf("Start recording\n");
+    appstate.recording = record_getkey;
   }
 }
 
@@ -1060,6 +1090,29 @@ void handle_keypress(XKeyEvent *e) {
   /* Ignore LockMask (Numlock, etc) and Mod2Mask (shift, etc) */
   e->state &= ~(LockMask | Mod2Mask);
 
+  if (appstate.recording == record_getkey) {
+    appstate.recording = record_ing; /* start recording actions */
+    /* TODO(sissel): support keys with keystrokes like shift+a */
+
+    /* check existing recording keycodes if we need to override it */
+    for (i = 0; i < nrecordings; i++) {
+      if (recordings[i].keycode == e->keycode) {
+        int j;
+        for (j = 0; j < recordings[i].ncommands; j++) {
+          free(recordings[i].commands[j]);
+        }
+        recordings[i].keycode = 0;
+      }
+    }
+
+    //printf("Recording as keycode:%d\n", e->keycode);
+    recordings[nrecordings].keycode = e->keycode;
+    recordings[nrecordings].ncommands = 0;
+    recordings[nrecordings].commands_size = 10;
+    recordings[nrecordings].commands = calloc(sizeof(char *), recordings[nrecordings].commands_size);
+    return;
+  }
+
   /* Loop over known keybindings */
   for (i = nkeybindings - 1; i >= 0; i--) {
     //printf("e->state:%d bindmods:%d and:%d\n", e->state, keybindings[i].mods, e->state & keybindings[i].mods);
@@ -1068,6 +1121,18 @@ void handle_keypress(XKeyEvent *e) {
     char *commands = keybindings[i].commands;
     if ((keycode == e->keycode) && (mods == e->state)) {
       handle_commands(commands);
+    }
+  }
+
+  /* Loop over known recordings */
+  for (i = nrecordings - 1; i >= 0; i--) {
+    struct recording *rec = &(recordings[i]);
+    //printf("Comparing: %d vs %d\n", rec->keycode, e->keycode);
+    if (e->keycode == rec->keycode) {
+      int j = 0;
+      for (j = 0; j < rec->ncommands; j++) {
+        handle_commands(rec->commands[j]);
+      }
     }
   }
 }
@@ -1087,8 +1152,16 @@ void handle_commands(char *commands) {
       tok++;
 
     strptr = NULL;
-    if (appstate.recording) {
-      printf("Command: %s\n", tok);
+    if (appstate.recording == record_ing) {
+      //printf("Command: %s\n", tok);
+      struct recording *rec = &(recordings[nrecordings]);
+      rec->commands[rec->ncommands] = strdup(tok);
+      rec->ncommands++;
+
+      if (rec->ncommands >= rec->commands_size) {
+        rec->commands_size *= 2;
+        rec->commands = realloc(rec->commands, rec->commands_size * sizeof(char *));
+      }
     }
 
     for (i = 0; dispatch[i].command; i++) {
@@ -1216,8 +1289,7 @@ void query_screen_normal() {
     viewports[i].h = s->height;
     viewports[i].root = RootWindowOfScreen(s);
     viewports[i].screen_num = i;
-    viewports[i].screen = s;
-  }
+    viewports[i].screen = s; }
 }
 
 int query_current_screen() {
