@@ -21,6 +21,7 @@
 #include <X11/keysym.h>
 #include <X11/extensions/shape.h>
 #include <X11/extensions/Xinerama.h>
+#include <glib.h>
 
 #include <xdo.h>
 
@@ -39,16 +40,13 @@ struct appstate {
   enum { record_getkey, record_ing, record_off } recording;
 };
 
-struct recording {
+typedef struct recording {
   int keycode;
-  char **commands;
-  int ncommands;
-  int commands_size;
-};
+  GPtrArray *commands;
+} recording_t;
 
-int nrecordings = 0;
-int recordings_size = 0;
-struct recording *recordings = NULL;
+GPtrArray *recordings;
+recording_t *active_recording = NULL;
 
 typedef struct colors {
   XColor red;
@@ -194,14 +192,13 @@ dispatch_t dispatch[] = {
   NULL, NULL,
 };
 
-struct keybinding {
+typedef struct keybinding {
   char *commands;
   int keycode;
   int mods;
-} *keybindings = NULL;
+} keybinding_t; 
 
-int nkeybindings = 0;
-int keybindings_size = 10;
+GPtrArray *keybindings = NULL;
 
 int parse_keycode(char *keyseq) {
   char *tokctx;
@@ -236,38 +233,25 @@ int parse_mods(char *keyseq) {
   char *tok;
   char *last_tok;
   char *dup;
-  char **mods  = NULL;
+  GPtrArray *mods;
   int modmask = 0;
-  int nmods = 0;
-  int mod_size = 10;
 
-  mods = malloc(mod_size * sizeof(char *));
-
-  //printf("finding mods for %s\n", keyseq);
+  mods = g_ptr_array_new();
 
   strptr = dup = strdup(keyseq);
   while ((tok = strtok_r(strptr, "+", &tokctx)) != NULL) {
     strptr = NULL;
-    //printf("mod: %s\n", tok);
-    mods[nmods] = tok;
-    nmods++;
-    if (nmods == mod_size) {
-      mod_size *= 2;
-      mods = realloc(mods, mod_size * sizeof(char *));
-    }
+    g_ptr_array_add(mods, tok);
   }
 
-
   int i = 0;
-  int j = 0;
   /* Use all but the last token as modifiers */
   const char **symbol_map = xdo_symbol_map();
-  for (i = 0; i < nmods; i++) {
-    const char *mod = mods[i];
+  for (i = 0; i < mods->len; i++) {
     KeySym keysym = 0;
+    int j = 0;
+    const char *mod = g_ptr_array_index(mods, i);
 
-    //printf("mod: keysym for %s = %d\n", mod, keysym);
-    // from xdo_util: Map "shift" -> "Shift_L", etc.
     for (j = 0; symbol_map[j] != NULL; j+=2) {
       if (!strcasecmp(mod, symbol_map[j])) {
         mod = symbol_map[j + 1];
@@ -290,36 +274,33 @@ int parse_mods(char *keyseq) {
   }
 
   free(dup);
-  free(mods);
+  g_ptr_array_free(mods, FALSE);
   return modmask;
 }
 
 void addbinding(int keycode, int mods, char *commands) {
   int i;
 
-  if (nkeybindings == keybindings_size) {
-    keybindings_size *= 2;
-    keybindings = realloc(keybindings, keybindings_size * sizeof(struct keybinding));
-  }
-
   // Check if we already have a binding for this, if so, override it.
-  for (i = 0; i <= nkeybindings; i++) {
-    if (keybindings[i].keycode == keycode
-        && keybindings[i].mods == mods) {
-      free(keybindings[i].commands);
-      keybindings[i].commands = strdup(commands);
+  for (i = 0; i < keybindings->len; i++) {
+    keybinding_t *kbt = g_ptr_array_index(keybindings, i);
+    if (kbt->keycode == keycode && kbt->mods == mods) {
+      free(kbt->commands);
+      kbt->commands = strdup(commands);
       return;
     }
   }
 
-  keybindings[nkeybindings].commands = strdup(commands);
-  keybindings[nkeybindings].keycode = keycode;
-  keybindings[nkeybindings].mods = mods;
-  nkeybindings++;
+  keybinding_t *keybinding = NULL;
+  keybinding = calloc(sizeof(keybinding_t), 1);
+  keybinding->commands = strdup(commands);
+  keybinding->keycode = keycode;
+  keybinding->mods = mods;
+  g_ptr_array_add(keybindings, keybinding);
 
   if (!strncmp(commands, "start", 5)) {
     int i = 0;
-    /* Grab on all screen roots */
+    /* Grab on all screen root windows */
     for (i = 0; i < ScreenCount(dpy); i++) {
       Window root = RootWindow(dpy, i);
       XGrabKey(dpy, keycode, mods, root, False, GrabModeAsync, GrabModeAsync);
@@ -349,10 +330,8 @@ void parse_config_file(const char* file) {
 void parse_config() {
   char *homedir;
 
-  keybindings = malloc(keybindings_size * sizeof(struct keybinding));
-  recordings_size = 10;
-  nrecordings = 0;
-  recordings = calloc(sizeof(struct recording), recordings_size);
+  keybindings = g_ptr_array_new();
+  recordings = g_ptr_array_new();
 
   parse_config_file(GLOBAL_CONFIG_FILE);
   homedir = getenv("HOME");
@@ -449,10 +428,7 @@ void parse_config_line(char *line) {
   /* A special config option that will clear all keybindings */
   if (strcmp(keyseq, "clear") == 0) {
     /* Reset keybindings */
-    free(keybindings);
-    nkeybindings = 0;
-    keybindings_size = 10;
-    keybindings = malloc(keybindings_size * sizeof(struct keybinding));
+    g_ptr_array_free(keybindings, TRUE);
   } else if (strcmp(keyseq, "daemonize") == 0) {
     daemonize = 1;
   } else {
@@ -952,21 +928,16 @@ void cmd_cell_select(char *args) {
 }
 
 void cmd_record(char *args) {
+  char *filename;
   if (!ISACTIVE)
     return;
 
   if (appstate.recording != record_off) {
-    //printf("Finish recording\n");
     appstate.recording = record_off;
-
-    /* Bump our recording count */
-    nrecordings++;
-    if (nrecordings >= recordings_size) {
-      recordings_size *= 2;
-      recordings = realloc(recordings, sizeof(struct recording) * recordings_size);
-    }
+    g_ptr_array_add(recordings, (gpointer) active_recording);
   } else {
-    //printf("Start recording\n");
+    active_recording = calloc(sizeof(recording_t), 1);
+    active_recording->commands = g_ptr_array_new();
     appstate.recording = record_getkey;
   }
 }
@@ -1096,30 +1067,27 @@ void handle_keypress(XKeyEvent *e) {
     /* TODO(sissel): support keys with keystrokes like shift+a */
 
     /* check existing recording keycodes if we need to override it */
-    for (i = 0; i < nrecordings; i++) {
-      if (recordings[i].keycode == e->keycode) {
-        int j;
-        for (j = 0; j < recordings[i].ncommands; j++) {
-          free(recordings[i].commands[j]);
-        }
-        recordings[i].keycode = 0;
+    for (i = 0; i < recordings->len; i++) {
+      recording_t *rec = (recording_t *) g_ptr_array_index(recordings, i);
+      if (rec->keycode == e->keycode) {
+        g_ptr_array_free(rec->commands, TRUE);
+        g_ptr_array_remove_index_fast(recordings, i);
+        i--; /* array removal will shift everything down one to make up for the loss 
+                we'll need to redo this index */
       }
     }
 
-    //printf("Recording as keycode:%d\n", e->keycode);
-    recordings[nrecordings].keycode = e->keycode;
-    recordings[nrecordings].ncommands = 0;
-    recordings[nrecordings].commands_size = 10;
-    recordings[nrecordings].commands = calloc(sizeof(char *), recordings[nrecordings].commands_size);
+    printf("Recording as keycode:%d\n", e->keycode);
+    active_recording->keycode = e->keycode;
     return;
   }
 
   /* Loop over known keybindings */
-  for (i = nkeybindings - 1; i >= 0; i--) {
-    //printf("e->state:%d bindmods:%d and:%d\n", e->state, keybindings[i].mods, e->state & keybindings[i].mods);
-    int keycode = keybindings[i].keycode;
-    int mods = keybindings[i].mods;
-    char *commands = keybindings[i].commands;
+  for (i = 0; i < keybindings->len; i++) {
+    keybinding_t *kbt = g_ptr_array_index(keybindings, i);
+    int keycode = kbt->keycode;
+    int mods = kbt->mods;
+    char *commands = kbt->commands;
     if ((keycode == e->keycode) && (mods == e->state)) {
       handle_commands(commands);
       key_found = 1;
@@ -1131,13 +1099,12 @@ void handle_keypress(XKeyEvent *e) {
     return;
 
   /* Loop over known recordings */
-  for (i = nrecordings - 1; i >= 0; i--) {
-    struct recording *rec = &(recordings[i]);
-    //printf("Comparing: %d vs %d\n", rec->keycode, e->keycode);
+  for (i = 0; i < recordings->len; i++) {
+    recording_t *rec = g_ptr_array_index(recordings, i);
     if (e->keycode == rec->keycode) {
       int j = 0;
-      for (j = 0; j < rec->ncommands; j++) {
-        handle_commands(rec->commands[j]);
+      for (j = 0; j < rec->commands->len; j++) {
+        handle_commands(g_ptr_array_index(rec->commands, j));
       }
     }
   }
@@ -1159,15 +1126,7 @@ void handle_commands(char *commands) {
 
     strptr = NULL;
     if (appstate.recording == record_ing) {
-      //printf("Command: %s\n", tok);
-      struct recording *rec = &(recordings[nrecordings]);
-      rec->commands[rec->ncommands] = strdup(tok);
-      rec->ncommands++;
-
-      if (rec->ncommands >= rec->commands_size) {
-        rec->commands_size *= 2;
-        rec->commands = realloc(rec->commands, rec->commands_size * sizeof(char *));
-      }
+      g_ptr_array_add(active_recording->commands, (gpointer) strdup(tok));
     }
 
     for (i = 0; dispatch[i].command; i++) {
