@@ -1,3 +1,8 @@
+???????????:
+  - Now requires libxdo.so.1
+  - Add ability to record keynav actions with the 'record' command. Optional argument
+    is a filename to save the recordings to for persistence across keynav runs.
+
 20091231.04:
   - Try repeatedly to grab the keyboard with XGrabKeyboard on 'start' commands.
     This loop is a necessary workaround for programs like xbindkeys that could
