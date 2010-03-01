@@ -136,6 +136,7 @@ void cmd_warp(char *args);
 void cmd_record(char *args);
 
 void update();
+void correct_overflow();
 void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *clip);
 void handle_keypress(XKeyEvent *e);
 void handle_commands(char *commands);
@@ -155,6 +156,7 @@ int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
 int percent_of(int num, char *args, float default_val);
 void sigchld(int sig);
 void recordings_save(const char *filename);
+void parse_recordings(const char *filename);
 
 typedef struct dispatch {
   char *command;
@@ -310,6 +312,33 @@ void addbinding(int keycode, int mods, char *commands) {
       XGrabKey(dpy, keycode, mods | LockMask | Mod2Mask, root, False, GrabModeAsync, GrabModeAsync);
     }
   }
+
+  if (!strncmp(commands, "record", 6)) {
+    char *path = commands + 6;
+
+    while (isspace(*path))
+      path++;
+
+    /* If args is nonempty, try to use it as the file to store recordings in */
+    if (path != NULL && path[0] != '\0') {
+      /* Fail if we try to set the record file to another name than we set
+       * previously */
+      if (recordings_filename != NULL && strcmp(recordings_filename, path)) {
+        fprintf(stderr, 
+                "Recordings file already set to '%s', you tried to\n"
+                "set it to '%s'. Keeping original value.\n",
+                recordings_filename, path);
+      } else {
+        /* Handle ~/ swapping in for actual homedir */
+        if (!strncmp(path, "~/", 2)) {
+          asprintf(&recordings_filename, "%s/%s", getenv("HOME"), path + 2);
+        } else {
+          recordings_filename = strdup(path);
+        }
+        parse_recordings(recordings_filename);
+      }
+    }
+  } /* special config handling for 'record' */
 }
 
 void parse_config_file(const char* file) {
@@ -317,15 +346,15 @@ void parse_config_file(const char* file) {
 #define LINEBUF_SIZE 512
   char line[LINEBUF_SIZE];
   fp = fopen(file, "r");
-  if (fp != NULL) {
-    /* fopen succeeded */
-    while (fgets(line, LINEBUF_SIZE, fp) != NULL) {
-      /* Kill the newline */
-      *(line + strlen(line) - 1) = '\0';
-      parse_config_line(line);
-    }
-    fclose(fp);
+  if (fp == NULL)
+    return;
+  /* fopen succeeded */
+  while (fgets(line, LINEBUF_SIZE, fp) != NULL) {
+    /* Kill the newline */
+    *(line + strlen(line) - 1) = '\0';
+    parse_config_line(line);
   }
+  fclose(fp);
 }
 
 void parse_config() {
@@ -415,7 +444,7 @@ void parse_config_line(char *line) {
     *comment = '\0';
 
   /* Ignore leading whitespace */
-  while (*line == ' ')
+  while (isspace(*line))
     line++;
 
   /* Ignore empty lines */
@@ -929,20 +958,6 @@ void cmd_record(char *args) {
   if (!ISACTIVE)
     return;
 
-  /* If args is nonempty, try to use it as the file to store recordings in */
-  if (args != NULL && args[0] != '\0') {
-    /* Fail if we try to set the record file to another name than we set
-     * previously */
-    if (recordings_filename != NULL && strcmp(recordings_filename, args)) {
-      fprintf(stderr, 
-              "Recordings file already set to '%s', you tried to\n"
-              "set it to '%s'. Ignoring.\n",
-              recordings_filename, args);
-    } else {
-      recordings_filename = strdup(args);
-    }
-  }
-
   if (appstate.recording != record_off) {
     appstate.recording = record_off;
     g_ptr_array_add(recordings, (gpointer) active_recording);
@@ -962,9 +977,23 @@ void update() {
   if (!ISACTIVE)
     return;
 
+  correct_overflow();
+  if (wininfo.w <= 1 || wininfo.h <= 1) {
+    cmd_end(NULL);
+    return;
+  }
+
+  updategrid(zone, &wininfo, True, True);
+  XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
+  XMapRaised(dpy, zone);
+}
+
+void correct_overflow() {
+  /* If the window is outside the boundaries of the screen, bump it back
+   * or, if possible, move it to the next screen */
+
   if (wininfo.x < viewports[wininfo.curviewport].x)
     viewport_left();
-
   if (wininfo.x + wininfo.w >
       viewports[wininfo.curviewport].x + viewports[wininfo.curviewport].w)
     viewport_right();
@@ -983,15 +1012,6 @@ void update() {
   if (wininfo.y + wininfo.h > 
       viewports[wininfo.curviewport].y + viewports[wininfo.curviewport].h)
     wininfo.y = viewports[wininfo.curviewport].h - wininfo.h;
-
-  if (wininfo.w <= 1 || wininfo.h <= 1) {
-    cmd_end(NULL);
-    return;
-  }
-
-  updategrid(zone, &wininfo, True, True);
-  XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
-  XMapRaised(dpy, zone);
 }
 
 void viewport_right() {
@@ -1093,7 +1113,7 @@ void handle_keypress(XKeyEvent *e) {
       }
     }
 
-    printf("Recording as keycode:%d\n", e->keycode);
+    //printf("Recording as keycode:%d\n", e->keycode);
     active_recording->keycode = e->keycode;
     return;
   }
@@ -1130,6 +1150,7 @@ void handle_commands(char *commands) {
   char *cmdcopy;
   char *tokctx, *tok, *strptr;
 
+  //printf("Commands; %s\n", commands);
   cmdcopy = strdup(commands);
   strptr = cmdcopy;
   while ((tok = strtok_r(strptr, ",", &tokctx)) != NULL) {
@@ -1143,7 +1164,7 @@ void handle_commands(char *commands) {
 
     /* Record this command (if the command is not 'record') */
     if (appstate.recording == record_ing && strncmp(tok, "record", 6)) {
-      printf("Record: %s\n", tok);
+      //printf("Record: %s\n", tok);
       g_ptr_array_add(active_recording->commands, (gpointer) strdup(tok));
     }
 
@@ -1160,7 +1181,6 @@ void handle_commands(char *commands) {
          * "command arg1 arg2"
          *          ^^^^^^^^^ <-- this 
          */
-
         char *args = tok + strlen(dispatch[i].command);
         if (*args == '\0')
           args = "";
@@ -1172,6 +1192,9 @@ void handle_commands(char *commands) {
 
         if (ISDRAGGING)
           cmd_warp(NULL);
+
+        /* Fix keynav window boundaries if they exceed the screen */
+        correct_overflow();
       }
     }
 
@@ -1344,17 +1367,7 @@ void recordings_save(const char *filename) {
   FILE *output = NULL;
   int i = 0;
 
-  /* Handle ~/ swapping in for actual homedir */
-  if (!strncmp(filename, "~/", 2)) {
-    char *path;
-    const char *homedir = getenv("HOME");
-    asprintf(&path, "%s/%s", homedir, filename + 2);
-    output = fopen(path, "w");
-    free(path);
-  } else {
-    output = fopen(filename, "w");
-  }
-
+  output = fopen(filename, "w");
   if (output == NULL) {
     fprintf(stderr, "Failure opening '%s' for write: %s\n", filename, strerror(errno));
     return; /* Should we exit instead? */
@@ -1377,6 +1390,34 @@ void recordings_save(const char *filename) {
   }
 
   fclose(output);
+}
+
+void parse_recordings(const char *filename) {
+  FILE *fp = fopen(filename, "r");
+  if (fp == NULL)
+    return;
+
+  static const int bufsize = 8192;
+  char line[bufsize];
+  /* fopen succeeded */
+  while (fgets(line, bufsize, fp) != NULL) {
+    /* Kill the newline */
+    *(line + strlen(line) - 1) = '\0';
+
+    int keycode = 0;
+    char *command = NULL;
+    keycode = atoi(line);
+    command = line + strcspn(line, " \t");
+    //printf("found recording: %d => %s\n", keycode, command);
+
+    recording_t *rec = NULL;
+    rec = calloc(sizeof(recording_t), 1);
+    rec->keycode = keycode;
+    rec->commands = g_ptr_array_new();
+    g_ptr_array_add(rec->commands, (gpointer) strdup(command));
+    g_ptr_array_add(recordings, (gpointer) rec);
+  }
+  fclose(fp);
 }
 
 int main(int argc, char **argv) {
