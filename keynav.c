@@ -154,11 +154,10 @@ int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
 int percent_of(int num, char *args, float default_val);
 void sigchld(int sig);
 
-struct dispatch {
+typedef struct dispatch {
   char *command;
   void (*func)(char *args);
-};
-typedef struct dispatch dispatch_t;
+} dispatch_t;
 
 dispatch_t dispatch[] = {
   "cut-up", cmd_cut_up,
@@ -768,12 +767,8 @@ void cmd_cursorzoom(char *args) {
   if (!ISACTIVE)
     return;
 
-  sscanf(args, "%d %d %d %d", &xradius, &yradius, &width, &height);
-
+  sscanf(args, "%d %d", &width, &height);
   xdo_mouselocation(xdo, &xloc, &yloc, NULL);
-
-  //xloc -= xradius;
-  //yloc -= yradius;
 
   wininfo.x = xloc - (width / 2);
   wininfo.y = yloc - (height / 2);
