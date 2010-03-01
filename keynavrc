@@ -52,6 +52,9 @@ semicolon warp,end
 # Zoom to the current window
 w windowzoom
 
+# Zoom to the cursor location with a given height and width
+c cursorzoom 200 200
+
 # Handy for holding ctrl while using keynav:
 ctrl+h cut-left
 ctrl+j cut-down
@@ -62,11 +65,16 @@ ctrl+u cut-right,cut-up
 ctrl+b cut-left,cut-down
 ctrl+n cut-right,cut-down
 
-### Example using the 'sh' command.
-f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')", end
-ctrl+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')",end
+# Record keynav actions
+q record
 
-g sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox'); xdotool key ctrl+apostrophe; xdotool type gmail; xdotool key Return",end
+### Example using the 'sh' command.
+# Make firefox the active window
+f sh "xdotool windowactivate $(xdotool search -title -- '- Mozilla Firefox')", end
+# Make a new tab in google chrome:
+t sh "xdotool windowactivate $(xdotool search --title -- '- Google Chrome' | head -1); xdotool key ctrl+t",end
+# Paste
+v sh "xdotool key shift+Insert"
 
 ### Drag examples
 # Start drag holding the left mouse button
