@@ -47,6 +47,7 @@ typedef struct recording {
 
 GPtrArray *recordings;
 recording_t *active_recording = NULL;
+char *recordings_filename = NULL;
 
 typedef struct colors {
   XColor red;
@@ -153,6 +154,7 @@ void viewport_right();
 int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
 int percent_of(int num, char *args, float default_val);
 void sigchld(int sig);
+void recordings_save(const char *filename);
 
 typedef struct dispatch {
   char *command;
@@ -927,9 +929,28 @@ void cmd_record(char *args) {
   if (!ISACTIVE)
     return;
 
+  /* If args is nonempty, try to use it as the file to store recordings in */
+  if (args != NULL && args[0] != '\0') {
+    /* Fail if we try to set the record file to another name than we set
+     * previously */
+    if (recordings_filename != NULL && strcmp(recordings_filename, args)) {
+      fprintf(stderr, 
+              "Recordings file already set to '%s', you tried to\n"
+              "set it to '%s'. Ignoring.\n",
+              recordings_filename, args);
+    } else {
+      recordings_filename = strdup(args);
+    }
+  }
+
   if (appstate.recording != record_off) {
     appstate.recording = record_off;
     g_ptr_array_add(recordings, (gpointer) active_recording);
+
+    /* Save to file */
+    if (recordings_filename != NULL) {
+      recordings_save(recordings_filename);
+    }
   } else {
     active_recording = calloc(sizeof(recording_t), 1);
     active_recording->commands = g_ptr_array_new();
@@ -1114,18 +1135,19 @@ void handle_commands(char *commands) {
   while ((tok = strtok_r(strptr, ",", &tokctx)) != NULL) {
     int i;
     int found = 0;
+    strptr = NULL;
 
     /* Ignore leading whitespace */
-    while (*tok == ' ' || *tok == '\t')
+    while (isspace(*tok))
       tok++;
 
-    strptr = NULL;
-    if (appstate.recording == record_ing) {
+    /* Record this command (if the command is not 'record') */
+    if (appstate.recording == record_ing && strncmp(tok, "record", 6)) {
+      printf("Record: %s\n", tok);
       g_ptr_array_add(active_recording->commands, (gpointer) strdup(tok));
     }
 
     for (i = 0; dispatch[i].command; i++) {
-
       /* XXX: This approach means we can't have one command be a subset of
        * another. For example, 'grid' and 'grid-foo' will fail because when you
        * use 'grid-foo' it'll match 'grid' first. 
@@ -1316,6 +1338,45 @@ void sigchld(int sig) {
   while (waitpid(-1, &status, WNOHANG) > 0) {
     /* Do nothing, but we needed to waitpid() to collect dead children */
   }
+}
+
+void recordings_save(const char *filename) {
+  FILE *output = NULL;
+  int i = 0;
+
+  /* Handle ~/ swapping in for actual homedir */
+  if (!strncmp(filename, "~/", 2)) {
+    char *path;
+    const char *homedir = getenv("HOME");
+    asprintf(&path, "%s/%s", homedir, filename + 2);
+    output = fopen(path, "w");
+    free(path);
+  } else {
+    output = fopen(filename, "w");
+  }
+
+  if (output == NULL) {
+    fprintf(stderr, "Failure opening '%s' for write: %s\n", filename, strerror(errno));
+    return; /* Should we exit instead? */
+  }
+
+  for (i = 0; i < recordings->len; i++) {
+    int j;
+    recording_t *rec = g_ptr_array_index(recordings, i);
+    if (rec->commands->len == 0)
+      continue;
+
+    fprintf(output, "%d ", rec->keycode);
+    for (j = 0; j < rec->commands->len; j++) {
+      fprintf(output, "%s%s", 
+              (char *) g_ptr_array_index(rec->commands, j),
+              (j + 1 < rec->commands->len ? ", " : ""));
+    }
+
+    fprintf(output, "\n");
+  }
+
+  fclose(output);
 }
 
 int main(int argc, char **argv) {
