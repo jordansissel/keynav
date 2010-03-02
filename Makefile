@@ -5,7 +5,7 @@ LDFLAGS+= $(shell pkg-config --libs xinerama glib-2.0 2> /dev/null || echo -L/us
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile
 
-MICROVERSION?=00
+VERSION=$(shell sh version.sh)
 
 .PHONY: all
 
@@ -14,6 +14,9 @@ all: keynav
 clean:
 	rm *.o || true;
 	$(MAKE) -C xdotool clean || true
+
+keynav.o: keynav_version.h
+keynav_version.h: version.sh
 
 # We'll try to detect 'libxdo' and use it if we find it.
 # otherwise, build monolithic.
@@ -29,14 +32,19 @@ keynav: keynav.o
 keynav.static: keynav.o xdo.o
 	$(CC) xdo.o keynav.o -o keynav `pkg-config --libs xext xtst` $(LDFLAGS)
 
+keynav_version.h:
+	sh version.sh --header > $@
+
 xdo.o:
 	$(MAKE) -C xdotool xdo.o
 	cp xdotool/xdo.o .
 
-package: clean
-	NAME=keynav-`date +%Y%m%d`.$(MICROVERSION); \
+pre-create-package:
+	rm -f keynav_version.h
+
+package: clean pre-create-package keynav_version.h
+	NAME=keynav-$(VERSION); \
 	mkdir $${NAME}; \
 	rsync --exclude '.*' -av *.c $(OTHERFILES) xdotool $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \
 	rm -rf $${NAME}/
-

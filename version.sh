@@ -18,7 +18,7 @@ case $1 in
   --header) 
     echo "#ifndef _VERSION_H_"
     echo "#define _VERSION_H_"
-    echo "static const char *XDO_VERSION = \"$VERSION\";"
+    echo "static const char *KEYNAV_VERSION = \"$VERSION\";"
     echo "#endif /* ifndef _VERSION_H */"
     ;;
   --shell)

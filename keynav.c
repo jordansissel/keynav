@@ -24,6 +24,7 @@
 #include <glib.h>
 
 #include <xdo.h>
+#include "keynav_version.h"
 
 #ifndef GLOBAL_CONFIG_FILE
 #define GLOBAL_CONFIG_FILE "/etc/keynavrc"
@@ -1424,14 +1425,21 @@ int main(int argc, char **argv) {
   char *pcDisplay;
   int ret;
 
-  if ( (pcDisplay = getenv("DISPLAY")) == NULL) {
+  if ((pcDisplay = getenv("DISPLAY")) == NULL) {
     fprintf(stderr, "Error: DISPLAY environment variable not set\n");
     exit(1);
   }
 
-  if ( (dpy = XOpenDisplay(pcDisplay)) == NULL) {
+  if ((dpy = XOpenDisplay(pcDisplay)) == NULL) {
     fprintf(stderr, "Error: Can't open display: %s\n", pcDisplay);
     exit(1);
+  }
+
+  if (argc > 1 && (!strcmp(argv[1], "version") 
+                   || !strcmp(argv[1], "-v") 
+                   || !strcmp(argv[1], "--version"))) {
+    printf("keynav %s\n", KEYNAV_VERSION);
+    return 0;
   }
 
   signal(SIGCHLD, sigchld);
