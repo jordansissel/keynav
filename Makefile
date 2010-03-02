@@ -42,9 +42,21 @@ xdo.o:
 pre-create-package:
 	rm -f keynav_version.h
 
-package: clean pre-create-package keynav_version.h
+create-package: clean pre-create-package keynav_version.h
 	NAME=keynav-$(VERSION); \
 	mkdir $${NAME}; \
 	rsync --exclude '.*' -av *.c $(OTHERFILES) xdotool $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \
 	rm -rf $${NAME}/
+
+package: create-package test-package-build
+
+test-package-build: create-package
+	@NAME=keynav-$(VERSION); \
+	tmp=$$(mktemp -d); \
+	echo "Testing package $$NAME"; \
+	tar -C $${tmp} -zxf $${NAME}.tar.gz; \
+	make -C $${tmp}/$${NAME} keynav; \
+	rm -rf $${NAME}/
+	rm -f $${NAME}.tar.gz
+
