@@ -22,9 +22,12 @@ keynav: keynav.o
 	if $(LD) -lxdo > /dev/null 2>&1 ; then \
 		$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
 	else \
-		$(MAKE) xdo.o; \
-		$(CC) xdo.o keynav.o -o $@ $(LDFLAGS); \
+		$(MAKE) keynav.static; \
 	fi
+
+.PHONY: keynav.static
+keynav.static: keynav.o xdo.o
+	$(CC) xdo.o keynav.o -o keynav `pkg-config --libs xext xtst` $(LDFLAGS)
 
 xdo.o:
 	$(MAKE) -C xdotool xdo.o
