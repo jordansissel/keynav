@@ -1,4 +1,5 @@
 0.20100302.*:
+  - Started using glib for dynamic arrays (GPtrArray)
   - Uses new versioning scheme major.date.svnrev
   - Added 'version' (or -v or --version) to output the keynav version
   - Now requires libxdo.so.1 (via xdotool)
