@@ -1,7 +1,19 @@
-???????????:
-  - Now requires libxdo.so.1
+0.20100302.*:
+  - Uses new versioning scheme major.date.svnrev
+  - Added 'version' (or -v or --version) to output the keynav version
+  - Now requires libxdo.so.1 (via xdotool)
   - Add ability to record keynav actions with the 'record' command. Optional argument
     is a filename to save the recordings to for persistence across keynav runs.
+    Example in keynavrc to bind 'q' to record to ~/.keynav_macros:
+      q record ~/.keynav_macros
+    Works similar to vim recording. 
+      1) Hit record once
+      2) Type the key you want to record to
+      3) Do things in keynav you want recorded.
+      4) Any 'end' operation or hitting record again will terminate and save
+         this recording.
+    Recordings only persist if you specify a file to save to, otherwise they are lost
+    across keynav restarts.
 
 20091231.04:
   - Try repeatedly to grab the keyboard with XGrabKeyboard on 'start' commands.
