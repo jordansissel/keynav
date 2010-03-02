@@ -3,7 +3,7 @@ LDFLAGS+= $(shell pkg-config --libs xinerama glib-2.0 2> /dev/null || echo -L/us
 
 #CFLAGS+=-g
 OTHERFILES=README CHANGELIST COPYRIGHT \
-           keynavrc Makefile
+           keynavrc Makefile version.sh
 
 VERSION=$(shell sh version.sh)
 
