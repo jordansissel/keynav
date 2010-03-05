@@ -1,9 +1,9 @@
 CFLAGS+= $(shell pkg-config --cflags xinerama glib-2.0 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include)
 LDFLAGS+= $(shell pkg-config --libs xinerama glib-2.0 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext -lglib)
 
-#CFLAGS+=-g
 OTHERFILES=README CHANGELIST COPYRIGHT \
-           keynavrc Makefile version.sh
+           keynavrc Makefile version.sh VERSION
+
 
 VERSION=$(shell sh version.sh)
 
@@ -22,7 +22,7 @@ keynav_version.h: version.sh
 # otherwise, build monolithic.
 keynav: keynav.o
 	@set -x; \
-	if $(LD) -lxdo > /dev/null 2>&1 ; then \
+	if $(LD) -o /dev/null -lxdo > /dev/null 2>&1 ; then \
 		$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
 	else \
 		$(MAKE) keynav.static; \
@@ -35,12 +35,17 @@ keynav.static: keynav.o xdo.o
 keynav_version.h:
 	sh version.sh --header > $@
 
+VERSION:
+	sh version.sh --shell > $@
+
+
 xdo.o:
 	$(MAKE) -C xdotool xdo.o
 	cp xdotool/xdo.o .
 
 pre-create-package:
-	rm -f keynav_version.h
+	rm -f keynav_version.h VERSION
+	$(MAKE) VERSION keynav_version.h
 
 create-package: clean pre-create-package keynav_version.h
 	NAME=keynav-$(VERSION); \
@@ -57,6 +62,7 @@ test-package-build: create-package
 	echo "Testing package $$NAME"; \
 	tar -C $${tmp} -zxf $${NAME}.tar.gz; \
 	make -C $${tmp}/$${NAME} keynav; \
+	(cd $${tmp}/$${NAME}; ./keynav version); \
 	rm -rf $${NAME}/
 	rm -f $${NAME}.tar.gz
 
