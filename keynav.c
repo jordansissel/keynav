@@ -364,6 +364,7 @@ void parse_config() {
   keybindings = g_ptr_array_new();
   recordings = g_ptr_array_new();
 
+  defaults();
   parse_config_file(GLOBAL_CONFIG_FILE);
   homedir = getenv("HOME");
 
@@ -379,9 +380,12 @@ void defaults() {
   char *tmp;
   int i;
   char *default_config[] = {
+    "clear",
     "ctrl+semicolon start",
     "Escape end",
     "ctrl+bracketleft end", /* for vi people who use ^[ */
+    "q record ~/.keynav_macros",
+    "a history-back",
     "h cut-left",
     "j cut-down",
     "k cut-up",
@@ -393,6 +397,8 @@ void defaults() {
     "space warp,click 1,end",
     "semicolon warp,end",
     "w warp",
+    "t windowzoom",
+    "c cursorzoom 300 300",
     "e end",
     "1 click 1",
     "2 click 2",
