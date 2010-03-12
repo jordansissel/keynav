@@ -316,26 +316,30 @@ void addbinding(int keycode, int mods, char *commands) {
 
   if (!strncmp(commands, "record", 6)) {
     char *path = commands + 6;
+    char *newrecordingpath;
 
     while (isspace(*path))
       path++;
 
     /* If args is nonempty, try to use it as the file to store recordings in */
     if (path != NULL && path[0] != '\0') {
+      /* Handle ~/ swapping in for actual homedir */
+      if (!strncmp(path, "~/", 2)) {
+        asprintf(&newrecordingpath, "%s/%s", getenv("HOME"), path + 2);
+      } else {
+        newrecordingpath = strdup(path);
+      }
+
       /* Fail if we try to set the record file to another name than we set
        * previously */
-      if (recordings_filename != NULL && strcmp(recordings_filename, path)) {
+      if (recordings_filename != NULL
+          && strcmp(recordings_filename, newrecordingpath)) {
+        free(newrecordingpath);
         fprintf(stderr, 
                 "Recordings file already set to '%s', you tried to\n"
                 "set it to '%s'. Keeping original value.\n",
                 recordings_filename, path);
       } else {
-        /* Handle ~/ swapping in for actual homedir */
-        if (!strncmp(path, "~/", 2)) {
-          asprintf(&recordings_filename, "%s/%s", getenv("HOME"), path + 2);
-        } else {
-          recordings_filename = strdup(path);
-        }
         parse_recordings(recordings_filename);
       }
     }
@@ -466,6 +470,7 @@ void parse_config_line(char *line) {
   if (strcmp(keyseq, "clear") == 0) {
     /* Reset keybindings */
     g_ptr_array_free(keybindings, TRUE);
+    keybindings = g_ptr_array_new();
   } else if (strcmp(keyseq, "daemonize") == 0) {
     daemonize = 1;
   } else {
