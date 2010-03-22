@@ -1,9 +1,10 @@
-CFLAGS+= $(shell pkg-config --cflags xinerama glib-2.0 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include)
-LDFLAGS+= $(shell pkg-config --libs xinerama glib-2.0 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext -lglib)
+CFLAGS+= $(shell pkg-config --cflags cairo-xlib xinerama glib-2.0 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include)
+LDFLAGS+= $(shell pkg-config --libs cairo-xlib xinerama glib-2.0 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext -lglib)
 
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile version.sh VERSION
 
+CFLAGS+=-g
 
 VERSION=$(shell sh version.sh)
 

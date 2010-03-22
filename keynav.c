@@ -1,6 +1,5 @@
 /*
- * Visual user-directed binary or grid search for something to point your mouse
- * at.
+ * keynav - Keyboard navigation tool. 
  *
  * XXX: Merge 'wininfo' and 'wininfo_history'. The latest history entry is the
  *      same as wininfo, so use that instead.
@@ -22,6 +21,7 @@
 #include <X11/extensions/shape.h>
 #include <X11/extensions/Xinerama.h>
 #include <glib.h>
+#include <cairo-xlib.h>
 
 #include <xdo.h>
 #include "keynav_version.h"
@@ -50,14 +50,6 @@ GPtrArray *recordings;
 recording_t *active_recording = NULL;
 char *recordings_filename = NULL;
 
-typedef struct colors {
-  XColor red;
-  XColor white;
-  XColor dummy;
-  Colormap colormap;
-  GC gc;
-} colors_t;
-
 typedef struct wininfo {
   int x;
   int y;
@@ -66,7 +58,6 @@ typedef struct wininfo {
   int grid_x;
   int grid_y;
   int border_thickness;
-  int pen_size;
   int center_cut_size;
   int curviewport;
 } wininfo_t;
@@ -95,14 +86,21 @@ static int daemonize = 0;
 
 static Display *dpy;
 static Window zone;
+
+static GC canvas_gc;
 static Pixmap canvas;
+static cairo_surface_t *canvas_surface;
+static cairo_t *canvas_cairo;
+static Pixmap shape;
+static cairo_surface_t *shape_surface;
+static cairo_t *shape_cairo;
+
 static xdo_t *xdo;
 static struct appstate appstate = {
   .active = 0,
   .dragging = 0,
   .recording = record_off,
 };
-static colors_t colors;
 
 static int drag_button = 0;
 static char drag_modkeys[128];
@@ -138,7 +136,6 @@ void cmd_record(char *args);
 
 void update();
 void correct_overflow();
-void drawborderline(struct wininfo *info, Window win, GC gc, XRectangle *clip);
 void handle_keypress(XKeyEvent *e);
 void handle_commands(char *commands);
 void parse_config();
@@ -500,117 +497,87 @@ int percent_of(int num, char *args, float default_val) {
   return value;
 }
 
-
-GC creategc(Drawable drawable) {
-  GC gc;
-  XGCValues gcv;
-
-  gc = XCreateGC(dpy, drawable, 0, NULL);
-  XSetForeground(dpy, gc, BlackPixel(dpy, 0));
-  XSetBackground(dpy, gc, WhitePixel(dpy, 0));
-  XSetFillStyle(dpy, gc, FillSolid);
-
-  return gc;
-}
-
 void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
-  XRectangle clip[30];
-  int idx = 0;
-  int w = info->w;
-  int h = info->h;
-  int cell_width;
-  int cell_height;
+  double w = info->w;
+  double h = info->h;
+  double cell_width;
+  double cell_height;
+  double x_off, y_off;
   int i;
 
-  /*left*/ 
-  clip[idx].x = 0;
-  clip[idx].y = 0;
-  clip[idx].width = info->border_thickness;
-  clip[idx].height = h;
-  idx++;
+  printf("updategrid: clip:%d, draw:%d\n", apply_clip, draw);
 
-  /*right*/
-  clip[idx].x = w - info->border_thickness;
-  clip[idx].y = 0;
-  clip[idx].width = info->border_thickness;
-  clip[idx].height = h;
-  idx++;
+  x_off = info->border_thickness / 2;
+  y_off = info->border_thickness / 2;
 
-  /*top*/
-  clip[idx].x = 0;
-  clip[idx].y = 0;
-  clip[idx].width = w;
-  clip[idx].height = info->border_thickness;
-  idx++;
-
-  /*bottom*/
-  clip[idx].x = 0;
-  clip[idx].y = h - info->border_thickness;
-  clip[idx].width = w;
-  clip[idx].height = info->border_thickness;
-  idx++;
-  
-  cell_width = (w / info->grid_y);
-  cell_height = (h / info->grid_x);
-
-  /* clip vertically */
-  for (i = 1; i < info->grid_y; i++) {
-    clip[idx].x = cell_width * i - (info->border_thickness / 2); 
-    clip[idx].y = 0;
-    clip[idx].width = info->border_thickness;
-    clip[idx].height = h;
-    idx++;
-  }
-
-  /* clip horizontally */
-  for (i = 1; i < info->grid_x; i++) {
-    clip[idx].x = 0;
-    clip[idx].y = cell_height * i - (info->border_thickness / 2);
-    clip[idx].width = w;
-    clip[idx].height = info->border_thickness;
-    idx++;
+  if (draw) {
+    cairo_new_path(canvas_cairo);
+    cairo_rectangle(canvas_cairo,
+                    viewports[wininfo.curviewport].x,
+                    viewports[wininfo.curviewport].y,
+                    viewports[wininfo.curviewport].w,
+                    viewports[wininfo.curviewport].h);
+    cairo_set_source_rgb(canvas_cairo, 0.3, 0.3, 0);
+    cairo_fill(canvas_cairo);
+    cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
   }
 
   if (apply_clip) {
-    XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip, idx, ShapeSet, 0);
+    cairo_new_path(shape_cairo);
+    cairo_set_operator(shape_cairo, CAIRO_OPERATOR_CLEAR);
+    cairo_rectangle(shape_cairo,
+                    viewports[wininfo.curviewport].x,
+                    viewports[wininfo.curviewport].y,
+                    viewports[wininfo.curviewport].w,
+                    viewports[wininfo.curviewport].h);
+    cairo_fill(shape_cairo);
+  }
 
-    /* Cut out a hole in the center */
-    clip[idx].x = (w/2 - (info->center_cut_size/2));
-    clip[idx].y = (h/2 - (info->center_cut_size/2));
-    clip[idx].width = info->center_cut_size;
-    clip[idx].height = info->center_cut_size;
-    idx++;
+  w -= info->border_thickness;
+  h -= info->border_thickness;
+  cell_width = (w / info->grid_y);
+  cell_height = (h / info->grid_x);
 
-    /* Cut out where the mouse is */
-    int mousecut = 1; /* try 1 pixel cut */
-    clip[idx].x = (mouseinfo.x - wininfo.x) - (mousecut / 2);
-    clip[idx].y = (mouseinfo.y - wininfo.y) - (mousecut / 2);
-    clip[idx].width = mousecut;
-    clip[idx].height = mousecut;
-    idx++;
+  int view_x = info->x + viewports[wininfo.curviewport].x;
+  int view_y = info->y + viewports[wininfo.curviewport].y;
 
-    XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, clip + idx - 2, 2,
-                            ShapeSubtract, 0);
+  /* clip vertically */
+  for (i = 0; i <= info->grid_y; i++) {
+    cairo_move_to(canvas_cairo, view_x + cell_width * i + x_off, view_y + y_off);
+    cairo_line_to(canvas_cairo, view_x + cell_width * i + x_off, view_y + h);
+  }
+
+  /* clip horizontally */
+  for (i = 0; i <= info->grid_x; i++) {
+    cairo_move_to(canvas_cairo, view_x + x_off, view_y + cell_height * i + y_off);
+    cairo_line_to(canvas_cairo, view_x + w, view_y + cell_height * i + y_off);
+  }
+
+  cairo_path_t *path = cairo_copy_path(canvas_cairo);
+
+  if (apply_clip) {
+    cairo_new_path(shape_cairo);
+    cairo_append_path(shape_cairo, path);
+    cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
+    cairo_stroke(shape_cairo);
+    XShapeCombineMask(dpy, win, ShapeBounding, 0, 0, shape, ShapeSet);
   } /* if apply_clip */
 
   if (draw) {
-    XSetLineAttributes(dpy, colors.gc,
-                       info->pen_size,LineSolid, CapButt, JoinBevel);
+    cairo_set_source_rgb(canvas_cairo, 0.5, 0, 0);
+    cairo_stroke(canvas_cairo);
 
-    // Fill it red.
-    XSetForeground(dpy, colors.gc, colors.red.pixel);
-    XFillRectangle(dpy, canvas, colors.gc, 0, 0, w, h);
+    /* cairo_stroke clears the current path, put it back */
+    cairo_append_path(canvas_cairo, path);
+    cairo_set_line_width(canvas_cairo, 1);
+    cairo_set_source_rgba(canvas_cairo, 1, 1, 1, .7);
+    cairo_stroke(canvas_cairo);
 
-    // Draw white lines.
-    XSetForeground(dpy, colors.gc, WhitePixel(dpy, 0));
-
-    for (i = 0; i < idx; i++) {
-      drawborderline(info, canvas, colors.gc, &(clip[i]));
-    }
-
-    XCopyArea(dpy, canvas, win, colors.gc, 0, 0, /* wininfo.x, wininfo.y,  */
-              wininfo.w, wininfo.h, 0, 0);
+    XCopyArea(dpy, canvas, win, canvas_gc,
+              wininfo.x, wininfo.y, w, h, 0, 0); //wininfo.w, wininfo.h, 0, 0);
   } /* if draw */
+
+  cairo_path_destroy(path);
 }
 
 void cmd_start(char *args) {
@@ -631,7 +598,6 @@ void cmd_start(char *args) {
   wininfo.grid_y = 2;
 
   wininfo.border_thickness = 5;
-  wininfo.pen_size = 1;
   wininfo.center_cut_size = 5;
 
   if (ISACTIVE)
@@ -676,21 +642,33 @@ void cmd_start(char *args) {
   appstate.active = True;
 
   if (zone == 0) { /* Create our window for the first time */
+    viewport_t *viewport = &(viewports[wininfo.curviewport]);
+    
     depth = viewports[wininfo.curviewport].screen->root_depth;
     wininfo_history_cursor = 0;
 
-    zone = XCreateSimpleWindow(dpy, viewports[wininfo.curviewport].root,
-                               wininfo.x, wininfo.y, 1, 1, 0, 
-                               ((unsigned long) 1) << depth - 1,
-                               ((unsigned long) 1) << depth - 1);
+    zone = XCreateSimpleWindow(dpy, viewport->root,
+                               wininfo.x, wininfo.y, wininfo.w, wininfo.h, 0, 0, 0);
     xdo_window_setclass(xdo, zone, "keynav", "keynav");
+    canvas_gc = XCreateGC(dpy, zone, 0, NULL);
 
-    canvas = XCreatePixmap(dpy, zone,
-                           viewports[wininfo.curviewport].w,
-                           viewports[wininfo.curviewport].h,
-                           viewports[wininfo.curviewport].screen->root_depth);
+    canvas = XCreatePixmap(dpy, zone, viewport->w, viewport->h,
+                           viewport->screen->root_depth);
+    canvas_surface = cairo_xlib_surface_create(dpy, canvas,
+                                               viewport->screen->root_visual,
+                                               viewport->w, viewport->h);
+    canvas_cairo = cairo_create(canvas_surface);
+    cairo_set_antialias(canvas_cairo, CAIRO_ANTIALIAS_NONE);
+    cairo_set_line_cap(canvas_cairo, CAIRO_LINE_CAP_SQUARE);
 
-    colors.gc = creategc(canvas);
+    shape = XCreatePixmap(dpy, zone, viewport->w, viewport->h, 1);
+    shape_surface = cairo_xlib_surface_create_for_bitmap(dpy, shape,
+                                                         viewport->screen,
+                                                         viewport->w,
+                                                         viewport->h);
+    shape_cairo = cairo_create(shape_surface);
+    cairo_set_line_width(shape_cairo, wininfo.border_thickness);
+    cairo_set_line_cap(shape_cairo, CAIRO_LINE_CAP_SQUARE);
 
     /* Tell the window manager not to manage us */
     winattr.override_redirect = 1;
@@ -994,9 +972,7 @@ void update() {
     cmd_end(NULL);
     return;
   }
-
   updategrid(zone, &wininfo, True, True);
-  XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
   XMapRaised(dpy, zone);
 }
 
@@ -1011,8 +987,9 @@ void correct_overflow() {
     viewport_right();
 
   /* Fix positioning if we went out of bounds (off the screen) */
-  if (wininfo.x < 0)
+  if (wininfo.x < 0) {
     wininfo.x = 0;
+  }
   if (wininfo.x + wininfo.w > 
       viewports[wininfo.curviewport].x + viewports[wininfo.curviewport].w)
     wininfo.x = viewports[wininfo.curviewport].x + viewports[wininfo.curviewport].w - wininfo.w;
@@ -1051,7 +1028,7 @@ void viewport_right() {
     wininfo.h = viewports[wininfo.curviewport].h;
   }
   wininfo.x = viewports[wininfo.curviewport].x;
-  //wininfo.y = viewports[wininfo.curviewport].y;
+  wininfo.y = viewports[wininfo.curviewport].y;
 }
 
 void viewport_left() {
@@ -1079,23 +1056,6 @@ void viewport_left() {
   }
   wininfo.x = viewports[wininfo.curviewport].w - wininfo.w;
   //wininfo.y = viewports[wininfo.curviewport].h - wininfo.h;
-}
-
-void drawborderline(struct wininfo *info, Drawable drawable,
-                    GC gc, XRectangle *rect) {
-  int penoffset = ((info->border_thickness / 2) - (info->pen_size / 2));
-  XDrawLine(dpy, drawable, gc,
-            (rect->x + (rect->width / 2)),
-            (rect->y + penoffset),
-            (rect->x + (rect->width / 2)),
-            ((rect->y + rect->height) - (penoffset*2))
-           );
-  XDrawLine(dpy, drawable, gc,
-            (rect->x + penoffset),
-            (rect->y + (rect->height / 2)),
-            (rect->x + rect->width - penoffset),
-            (rect->y + (rect->height / 2))
-           );
 }
 
 void handle_keypress(XKeyEvent *e) {
@@ -1458,8 +1418,6 @@ int main(int argc, char **argv) {
 
   parse_config();
   query_screens();
-  colors.colormap = DefaultColormap(dpy, 0);
-  XAllocNamedColor(dpy, colors.colormap, "darkred", &colors.red, &colors.dummy);
 
   /* Sync with the X server.
    * This ensure we errors about XGrabKey and other failures
@@ -1490,12 +1448,15 @@ int main(int argc, char **argv) {
 
       // Map and Configure events mean the window was changed or is now mapped.
       case MapNotify:
+        //updategrid(zone, &wininfo, True, True);
+        break;
+
       case ConfigureNotify:
-        updategrid(zone, &wininfo, False, True);
+        //updategrid(zone, &wininfo, True, True);
         break;
 
       case Expose:
-        XCopyArea(dpy, canvas, zone, colors.gc, e.xexpose.x, e.xexpose.y,
+        XCopyArea(dpy, canvas, zone, canvas_gc, e.xexpose.x, e.xexpose.y,
                   e.xexpose.width, e.xexpose.height,
                   e.xexpose.x, e.xexpose.y);
 
@@ -1504,7 +1465,7 @@ int main(int argc, char **argv) {
       case MotionNotify:
         mouseinfo.x = e.xmotion.x_root;
         mouseinfo.y = e.xmotion.y_root;
-        updategrid(zone, &wininfo, True, False);
+        //updategrid(zone, &wininfo, True, False);
         break;
 
       // Ignorable events.
