@@ -1022,7 +1022,7 @@ void update() {
 
   //printf("move: %d, clip: %d, draw: %d, resize: %d\n", move, clip, draw, resize);
 
-  if (((clip || draw) + draw + resize) > 1) {
+  if (((clip || draw) + (move || resize)) > 1) {
     /* more than one action to perform, unmap to hide move/draws 
      * to reduce flickering */
     XUnmapWindow(dpy, zone);
