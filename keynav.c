@@ -590,8 +590,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_set_source_rgba(canvas_cairo, 1, 1, 1, .7);
     cairo_stroke(canvas_cairo);
 
-    XCopyArea(dpy, canvas, win, canvas_gc,
-              0, 0, wininfo.w, wininfo.h, 0, 0);
+    XCopyArea(dpy, canvas, win, canvas_gc, 0, 0, wininfo.w, wininfo.h, 0, 0);
 #ifdef PROFILE_THINGS
     XSync(dpy, False);
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -1023,6 +1022,12 @@ void update() {
 
   //printf("move: %d, clip: %d, draw: %d, resize: %d\n", move, clip, draw, resize);
 
+  if (((clip || draw) + draw + resize) > 1) {
+    /* more than one action to perform, unmap to hide move/draws 
+     * to reduce flickering */
+    XUnmapWindow(dpy, zone);
+  }
+
   if (clip || draw) {
     updategrid(zone, &wininfo, clip, draw);
   }
@@ -1269,6 +1274,7 @@ void restore_history_point(int moves_ago) {
   memcpy(&(wininfo),
          &(wininfo_history[wininfo_history_cursor]),
          sizeof(wininfo));
+  appstate.need_draw = 1;
 }
 
 /* Sort viewports, left to right.

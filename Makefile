@@ -4,8 +4,6 @@ LDFLAGS+= $(shell pkg-config --libs cairo-xlib xinerama glib-2.0 2> /dev/null ||
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile version.sh VERSION
 
-CFLAGS+=-g
-
 VERSION=$(shell sh version.sh)
 
 .PHONY: all
