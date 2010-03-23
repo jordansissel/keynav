@@ -1,3 +1,7 @@
+????????????:
+  - Use cairo graphics for drawing instead of raw Xlib. This makes drawing a little bit
+    less painful and will allow me to more quickly prototype ideas in the future.
+
 0.20100302.*:
   - Started using glib for dynamic arrays (GPtrArray)
   - Uses new versioning scheme major.date.svnrev
