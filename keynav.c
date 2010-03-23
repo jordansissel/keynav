@@ -1032,11 +1032,11 @@ void update() {
     updategrid(zone, &wininfo, clip, draw);
   }
 
-  if (resize) {
+  if (resize && move) {
+    XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
+  } else if (resize) {
     XResizeWindow(dpy, zone, wininfo.w, wininfo.h);
-  }
-
-  if (move) {
+  } else if (move) {
     XMoveWindow(dpy, zone, wininfo.x, wininfo.y);
   }
 
@@ -1268,12 +1268,12 @@ void save_history_point() {
 
 void restore_history_point(int moves_ago) {
   wininfo_history_cursor -= moves_ago + 1;
-  if (wininfo_history_cursor < 0)
+  if (wininfo_history_cursor < 0) {
     wininfo_history_cursor = 0;
+  }
 
-  memcpy(&(wininfo),
-         &(wininfo_history[wininfo_history_cursor]),
-         sizeof(wininfo));
+  wininfo_t *previous = &(wininfo_history[wininfo_history_cursor]);
+  memcpy(&wininfo, previous, sizeof(wininfo));
   appstate.need_draw = 1;
 }
 
