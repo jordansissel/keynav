@@ -13,7 +13,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
-
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
 #include <X11/Xutil.h>
@@ -22,6 +21,10 @@
 #include <X11/extensions/Xinerama.h>
 #include <glib.h>
 #include <cairo-xlib.h>
+
+#ifdef PROFILE_THINGS
+#include <time.h>
+#endif
 
 #include <xdo.h>
 #include "keynav_version.h"
@@ -38,6 +41,7 @@ extern char **environ;
 struct appstate {
   int active;
   int dragging;
+  int need_draw;
   enum { record_getkey, record_ing, record_off } recording;
 };
 
@@ -504,32 +508,29 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   double cell_height;
   double x_off, y_off;
   int i;
+  
+#ifdef PROFILE_THINGS
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC, &start);
+#endif
 
-  printf("updategrid: clip:%d, draw:%d\n", apply_clip, draw);
+  //printf("updategrid: clip:%d, draw:%d\n", apply_clip, draw);
 
   x_off = info->border_thickness / 2;
   y_off = info->border_thickness / 2;
 
   if (draw) {
     cairo_new_path(canvas_cairo);
-    cairo_rectangle(canvas_cairo,
-                    viewports[wininfo.curviewport].x,
-                    viewports[wininfo.curviewport].y,
-                    viewports[wininfo.curviewport].w,
-                    viewports[wininfo.curviewport].h);
-    cairo_set_source_rgb(canvas_cairo, 0.3, 0.3, 0);
-    cairo_fill(canvas_cairo);
+    //cairo_rectangle(canvas_cairo, 0, 0, w, h);
+    //cairo_set_source_rgb(canvas_cairo, 1, 1, 0);
+    //cairo_fill(canvas_cairo);
     cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
   }
 
   if (apply_clip) {
     cairo_new_path(shape_cairo);
     cairo_set_operator(shape_cairo, CAIRO_OPERATOR_CLEAR);
-    cairo_rectangle(shape_cairo,
-                    viewports[wininfo.curviewport].x,
-                    viewports[wininfo.curviewport].y,
-                    viewports[wininfo.curviewport].w,
-                    viewports[wininfo.curviewport].h);
+    cairo_rectangle(shape_cairo, 0, 0, w, h);
     cairo_fill(shape_cairo);
   }
 
@@ -538,22 +539,29 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   cell_width = (w / info->grid_y);
   cell_height = (h / info->grid_x);
 
-  int view_x = info->x + viewports[wininfo.curviewport].x;
-  int view_y = info->y + viewports[wininfo.curviewport].y;
-
+  h++;
+  w++;
   /* clip vertically */
   for (i = 0; i <= info->grid_y; i++) {
-    cairo_move_to(canvas_cairo, view_x + cell_width * i + x_off, view_y + y_off);
-    cairo_line_to(canvas_cairo, view_x + cell_width * i + x_off, view_y + h);
+    cairo_move_to(canvas_cairo, cell_width * i + x_off, y_off);
+    cairo_line_to(canvas_cairo, cell_width * i + x_off, h);
   }
 
   /* clip horizontally */
   for (i = 0; i <= info->grid_x; i++) {
-    cairo_move_to(canvas_cairo, view_x + x_off, view_y + cell_height * i + y_off);
-    cairo_line_to(canvas_cairo, view_x + w, view_y + cell_height * i + y_off);
+    cairo_move_to(canvas_cairo, x_off, cell_height * i + y_off);
+    cairo_line_to(canvas_cairo, w, cell_height * i + y_off);
   }
 
   cairo_path_t *path = cairo_copy_path(canvas_cairo);
+
+#ifdef PROFILE_THINGS
+  clock_gettime(CLOCK_MONOTONIC, &end);
+  printf("updategrid pathbuild time: %ld.%09ld\n",
+         end.tv_sec - start.tv_sec,
+         end.tv_nsec - start.tv_nsec);
+  clock_gettime(CLOCK_MONOTONIC, &start);
+#endif
 
   if (apply_clip) {
     cairo_new_path(shape_cairo);
@@ -561,6 +569,15 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
     cairo_stroke(shape_cairo);
     XShapeCombineMask(dpy, win, ShapeBounding, 0, 0, shape, ShapeSet);
+
+#ifdef PROFILE_THINGS
+    XSync(dpy, False);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    printf("updategrid applyclip time: %ld.%09ld\n",
+           end.tv_sec - start.tv_sec,
+           end.tv_nsec - start.tv_nsec);
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#endif
   } /* if apply_clip */
 
   if (draw) {
@@ -574,7 +591,15 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_stroke(canvas_cairo);
 
     XCopyArea(dpy, canvas, win, canvas_gc,
-              wininfo.x, wininfo.y, w, h, 0, 0); //wininfo.w, wininfo.h, 0, 0);
+              0, 0, wininfo.w, wininfo.h, 0, 0);
+#ifdef PROFILE_THINGS
+    XSync(dpy, False);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    printf("updategrid draw time: %ld.%09ld\n",
+           end.tv_sec - start.tv_sec,
+           end.tv_nsec - start.tv_nsec);
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#endif
   } /* if draw */
 
   cairo_path_destroy(path);
@@ -640,6 +665,7 @@ void cmd_start(char *args) {
   //printf("Got grab!\n");
 
   appstate.active = True;
+  appstate.need_draw = 1;
 
   if (zone == 0) { /* Create our window for the first time */
     viewport_t *viewport = &(viewports[wininfo.curviewport]);
@@ -972,7 +998,43 @@ void update() {
     cmd_end(NULL);
     return;
   }
-  updategrid(zone, &wininfo, True, True);
+
+  wininfo_t *previous = &(wininfo_history[wininfo_history_cursor - 1]);
+  //printf("window: %d,%d @ %d,%d\n", wininfo.w, wininfo.h, wininfo.x, wininfo.y);
+  //printf("previous: %d,%d @ %d,%d\n", previous->w, previous->h, previous->x, previous->y);
+  int draw = 0, move = 0, resize = 0, clip = 0;
+  if (previous->x != wininfo.x || previous->y != wininfo.y) {
+    move = 1;
+  }
+
+  if (previous->w != wininfo.w || previous->h != wininfo.h) {
+    clip = 1;
+    draw = 1;
+    resize = 1;
+  }
+
+  if (appstate.need_draw) {
+    move = 1;
+    clip = 1;
+    draw = 1;
+    resize = 1;
+    appstate.need_draw = 0;
+  }
+
+  //printf("move: %d, clip: %d, draw: %d, resize: %d\n", move, clip, draw, resize);
+
+  if (clip || draw) {
+    updategrid(zone, &wininfo, clip, draw);
+  }
+
+  if (resize) {
+    XResizeWindow(dpy, zone, wininfo.w, wininfo.h);
+  }
+
+  if (move) {
+    XMoveWindow(dpy, zone, wininfo.x, wininfo.y);
+  }
+
   XMapRaised(dpy, zone);
 }
 
@@ -1028,7 +1090,6 @@ void viewport_right() {
     wininfo.h = viewports[wininfo.curviewport].h;
   }
   wininfo.x = viewports[wininfo.curviewport].x;
-  wininfo.y = viewports[wininfo.curviewport].y;
 }
 
 void viewport_left() {
@@ -1055,7 +1116,6 @@ void viewport_left() {
     wininfo.h = viewports[wininfo.curviewport].h;
   }
   wininfo.x = viewports[wininfo.curviewport].w - wininfo.w;
-  //wininfo.y = viewports[wininfo.curviewport].h - wininfo.h;
 }
 
 void handle_keypress(XKeyEvent *e) {
@@ -1446,26 +1506,25 @@ int main(int argc, char **argv) {
         handle_keypress((XKeyEvent *)&e);
         break;
 
-      // Map and Configure events mean the window was changed or is now mapped.
       case MapNotify:
-        //updategrid(zone, &wininfo, True, True);
+        update();
         break;
 
+      // Map and Configure events mean the window was changed or is now mapped.
       case ConfigureNotify:
-        //updategrid(zone, &wininfo, True, True);
+        update();
         break;
 
       case Expose:
         XCopyArea(dpy, canvas, zone, canvas_gc, e.xexpose.x, e.xexpose.y,
                   e.xexpose.width, e.xexpose.height,
                   e.xexpose.x, e.xexpose.y);
-
         break;
 
       case MotionNotify:
         mouseinfo.x = e.xmotion.x_root;
         mouseinfo.y = e.xmotion.y_root;
-        //updategrid(zone, &wininfo, True, False);
+        update();
         break;
 
       // Ignorable events.
