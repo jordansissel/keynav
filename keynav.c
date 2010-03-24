@@ -568,7 +568,6 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_append_path(shape_cairo, path);
     cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
     cairo_stroke(shape_cairo);
-    XShapeCombineMask(dpy, win, ShapeBounding, 0, 0, shape, ShapeSet);
 
 #ifdef PROFILE_THINGS
     XSync(dpy, False);
@@ -590,7 +589,6 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_set_source_rgba(canvas_cairo, 1, 1, 1, .7);
     cairo_stroke(canvas_cairo);
 
-    XCopyArea(dpy, canvas, win, canvas_gc, 0, 0, wininfo.w, wininfo.h, 0, 0);
 #ifdef PROFILE_THINGS
     XSync(dpy, False);
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -615,18 +613,22 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
   x_off = info->border_thickness / 2;
   y_off = info->border_thickness / 2;
 
+  cairo_text_extents_t te;
+#define FONTSIZE 18
   if (draw) {
     cairo_new_path(canvas_cairo);
     cairo_select_font_face(canvas_cairo, "Courier", CAIRO_FONT_SLANT_NORMAL,
                            CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(canvas_cairo, 15);
+    cairo_set_font_size(canvas_cairo, FONTSIZE);
+    cairo_text_extents(canvas_cairo, "AA", &te);
   }
 
   if (apply_clip) {
     cairo_new_path(shape_cairo);
     cairo_select_font_face(shape_cairo, "Courier", CAIRO_FONT_SLANT_NORMAL,
                            CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(shape_cairo, 15);
+    cairo_set_font_size(shape_cairo, FONTSIZE);
+    cairo_text_extents(shape_cairo, "AA", &te);
   }
 
   w -= info->border_thickness;
@@ -637,36 +639,64 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
   h++;
   w++;
 
-  cairo_text_extents_t te;
+  printf("bearing: %f,%f\n", te.x_bearing, te.y_bearing);
+  printf("size: %f,%f\n", te.width, te.height);
 
   char label[3] = "AA";
+
   for (row = 0; row < info->grid_y; row++) {
     label[0] = 'A';
     for (col = 0; col < info->grid_x; col++) {
+      int rectwidth = te.width + 25;
+      int rectheight = te.height + 15;
+      int xpos = cell_width * col + x_off + (cell_width / 2);
+      int ypos = cell_height * row + y_off + (cell_height / 2);
+
       if (draw) {
-        cairo_move_to(canvas_cairo,
-                      cell_width * col + x_off + (cell_width / 2),
-                      cell_height * row + y_off + (cell_height / 2));
+        cairo_save(canvas_cairo);
+        cairo_rectangle(canvas_cairo,
+                        xpos - rectwidth / 2 + te.x_bearing / 2,
+                        ypos - rectheight / 2 + te.y_bearing / 2,
+                        rectwidth, rectheight);
+        cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
+        cairo_fill(canvas_cairo);
+
+        /* outline the rectangle */
+        cairo_rectangle(canvas_cairo,
+                        xpos - rectwidth / 2 + te.x_bearing / 2 + 1,
+                        ypos - rectheight / 2 + te.y_bearing / 2 + 1,
+                        rectwidth - 1, rectheight - 1);
+        cairo_set_source_rgb(canvas_cairo, 0, .8, 0);
+        cairo_set_line_width(canvas_cairo, 1);
+        cairo_stroke(canvas_cairo);
+        cairo_restore(canvas_cairo);
+
+        cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
+        cairo_move_to(canvas_cairo, xpos - te.width / 2, ypos);
         cairo_show_text(canvas_cairo, label);
       }
+
       if (apply_clip) {
-        cairo_move_to(shape_cairo,
-                      cell_width * col + x_off + (cell_width / 2),
-                      cell_height * row + y_off + (cell_height / 2));
-        cairo_show_text(shape_cairo, label);
+        cairo_rectangle(shape_cairo,
+                        xpos - rectwidth / 2 + te.x_bearing / 2,
+                        ypos - rectheight / 2 + te.y_bearing / 2,
+                        rectwidth, rectheight);
+        cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
+        cairo_fill(shape_cairo);
+
+        /* Shaping based on the text instead of a rectangle causes
+         * X some higher overhead in applying the shape and when
+         * moving the shape (incurs added expose events, it seems)
+         * So let's not do it since we don't need it */
+        //cairo_move_to(shape_cairo,
+                      //cell_width * col + x_off + (cell_width / 2),
+                      //cell_height * row + y_off + (cell_height / 2));
+        //cairo_show_text(shape_cairo, label);
       }
       label[0]++;
     }
     label[1]++;
   }
-
-  if (apply_clip) {
-    XShapeCombineMask(dpy, win, ShapeBounding, 0, 0, shape, ShapeSet);
-  } /* if apply_clip */
-
-  if (draw) {
-    XCopyArea(dpy, canvas, win, canvas_gc, 0, 0, wininfo.w, wininfo.h, 0, 0);
-  } /* if draw */
 }
 
 void cmd_start(char *args) {
@@ -1096,6 +1126,13 @@ void update() {
   if (clip || draw) {
     updategrid(zone, &wininfo, clip, draw);
     updategridtext(zone, &wininfo, clip, draw);
+
+    if (clip) {
+      XShapeCombineMask(dpy, zone, ShapeBounding, 0, 0, shape, ShapeSet);
+    }
+    if (draw) {
+      XCopyArea(dpy, canvas, zone, canvas_gc, 0, 0, wininfo.w, wininfo.h, 0, 0);
+    }
   }
 
   if (resize && move) {
