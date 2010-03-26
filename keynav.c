@@ -521,9 +521,9 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   if (draw) {
     cairo_new_path(canvas_cairo);
-    //cairo_rectangle(canvas_cairo, 0, 0, w, h);
-    //cairo_set_source_rgb(canvas_cairo, 1, 1, 0);
-    //cairo_fill(canvas_cairo);
+    cairo_set_source_rgb(canvas_cairo, 1, 1, 1);
+    cairo_rectangle(canvas_cairo, 0, 0, w, h);
+    cairo_fill(canvas_cairo);
     cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
   }
 
@@ -567,6 +567,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_new_path(shape_cairo);
     cairo_append_path(shape_cairo, path);
     cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
+    cairo_set_line_width(shape_cairo, 3);
     cairo_stroke(shape_cairo);
 
 #ifdef PROFILE_THINGS
@@ -581,6 +582,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   if (draw) {
     cairo_set_source_rgb(canvas_cairo, 0.5, 0, 0);
+    cairo_set_line_width(canvas_cairo, 3);
     cairo_stroke(canvas_cairo);
 
     /* cairo_stroke clears the current path, put it back */
@@ -644,6 +646,43 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   char label[3] = "AA";
 
+  cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
+  cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
+  for (row = 0; row < info->grid_y; row++) {
+    label[0] = 'A';
+    for (col = 0; col < info->grid_x; col++) {
+      int rectwidth = te.width + 25;
+      int rectheight = te.height + 15;
+      int xpos = cell_width * col + x_off + (cell_width / 2);
+      int ypos = cell_height * row + y_off + (cell_height / 2);
+
+      cairo_rectangle(canvas_cairo,
+                      xpos - rectwidth / 2 + te.x_bearing / 2,
+                      ypos - rectheight / 2 + te.y_bearing / 2,
+                      rectwidth, rectheight);
+      label[0]++;
+    }
+    label[1]++;
+  } /* Draw rectangles */
+
+  cairo_path_t *pathcopy;
+  pathcopy = cairo_copy_path(canvas_cairo);
+  if (draw) {
+    cairo_set_line_width(shape_cairo, 2);
+    cairo_fill(canvas_cairo);
+    cairo_append_path(shape_cairo, pathcopy);
+    cairo_set_source_rgb(canvas_cairo, .8, .8, 0);
+    cairo_stroke(canvas_cairo);
+  }
+
+  if (apply_clip) {
+    cairo_append_path(shape_cairo, pathcopy);
+    cairo_fill(shape_cairo);
+  }
+  cairo_path_destroy(pathcopy);
+
+  label[1] = 'A';
+  cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
   for (row = 0; row < info->grid_y; row++) {
     label[0] = 'A';
     for (col = 0; col < info->grid_x; col++) {
@@ -653,45 +692,8 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
       int ypos = cell_height * row + y_off + (cell_height / 2);
 
       if (draw) {
-        cairo_save(canvas_cairo);
-        cairo_rectangle(canvas_cairo,
-                        xpos - rectwidth / 2 + te.x_bearing / 2,
-                        ypos - rectheight / 2 + te.y_bearing / 2,
-                        rectwidth, rectheight);
-        cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
-        cairo_fill(canvas_cairo);
-
-        /* outline the rectangle */
-        cairo_rectangle(canvas_cairo,
-                        xpos - rectwidth / 2 + te.x_bearing / 2 + 1,
-                        ypos - rectheight / 2 + te.y_bearing / 2 + 1,
-                        rectwidth - 1, rectheight - 1);
-        cairo_set_source_rgb(canvas_cairo, 0, .8, 0);
-        cairo_set_line_width(canvas_cairo, 1);
-        cairo_stroke(canvas_cairo);
-        cairo_restore(canvas_cairo);
-
-        cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
         cairo_move_to(canvas_cairo, xpos - te.width / 2, ypos);
         cairo_show_text(canvas_cairo, label);
-      }
-
-      if (apply_clip) {
-        cairo_rectangle(shape_cairo,
-                        xpos - rectwidth / 2 + te.x_bearing / 2,
-                        ypos - rectheight / 2 + te.y_bearing / 2,
-                        rectwidth, rectheight);
-        cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
-        cairo_fill(shape_cairo);
-
-        /* Shaping based on the text instead of a rectangle causes
-         * X some higher overhead in applying the shape and when
-         * moving the shape (incurs added expose events, it seems)
-         * So let's not do it since we don't need it */
-        //cairo_move_to(shape_cairo,
-                      //cell_width * col + x_off + (cell_width / 2),
-                      //cell_height * row + y_off + (cell_height / 2));
-        //cairo_show_text(shape_cairo, label);
       }
       label[0]++;
     }
@@ -788,6 +790,7 @@ void cmd_start(char *args) {
                                                          viewport->h);
     shape_cairo = cairo_create(shape_surface);
     cairo_set_line_width(shape_cairo, wininfo.border_thickness);
+    cairo_set_antialias(canvas_cairo, CAIRO_ANTIALIAS_NONE);
     cairo_set_line_cap(shape_cairo, CAIRO_LINE_CAP_SQUARE);
 
     /* Tell the window manager not to manage us */
@@ -1117,6 +1120,7 @@ void update() {
 
   //printf("move: %d, clip: %d, draw: %d, resize: %d\n", move, clip, draw, resize);
 
+  //clip = 0;
   if (((clip || draw) + (move || resize)) > 1) {
     /* more than one action to perform, unmap to hide move/draws 
      * to reduce flickering */
@@ -1125,7 +1129,7 @@ void update() {
 
   if (clip || draw) {
     updategrid(zone, &wininfo, clip, draw);
-    updategridtext(zone, &wininfo, clip, draw);
+    //updategridtext(zone, &wininfo, clip, draw);
 
     if (clip) {
       XShapeCombineMask(dpy, zone, ShapeBounding, 0, 0, shape, ShapeSet);
