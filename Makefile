@@ -4,6 +4,8 @@ LDFLAGS+=$(shell pkg-config --libs glib-2.0)
 
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile version.sh VERSION
+CFLAGS+=-DPROFILE_THINGS
+LDFLAGS+=-lrt
 
 VERSION=$(shell sh version.sh)
 

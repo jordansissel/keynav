@@ -516,8 +516,8 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   //printf("updategrid: clip:%d, draw:%d\n", apply_clip, draw);
 
-  x_off = info->border_thickness / 2;
-  y_off = info->border_thickness / 2;
+  x_off = info->border_thickness / 2 - 1;
+  y_off = info->border_thickness / 2 - 1;
 
   if (draw) {
     cairo_new_path(canvas_cairo);
@@ -534,13 +534,11 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_fill(shape_cairo);
   }
 
-  w -= info->border_thickness;
-  h -= info->border_thickness;
+  w -= info->border_thickness - 1;
+  h -= info->border_thickness - 1;
   cell_width = (w / info->grid_y);
   cell_height = (h / info->grid_x);
 
-  h++;
-  w++;
   /* clip vertically */
   for (i = 0; i <= info->grid_y; i++) {
     cairo_move_to(canvas_cairo, cell_width * i + x_off, y_off);
@@ -718,8 +716,8 @@ void cmd_start(char *args) {
   wininfo.grid_x = 2;
   wininfo.grid_y = 2;
 
-  wininfo.border_thickness = 5;
-  wininfo.center_cut_size = 5;
+  wininfo.border_thickness = 3;
+  wininfo.center_cut_size = 3;
 
   if (ISACTIVE)
     return;
@@ -1120,7 +1118,7 @@ void update() {
 
   //printf("move: %d, clip: %d, draw: %d, resize: %d\n", move, clip, draw, resize);
 
-  //clip = 0;
+  clip = 0;
   if (((clip || draw) + (move || resize)) > 1) {
     /* more than one action to perform, unmap to hide move/draws 
      * to reduce flickering */
