@@ -1122,7 +1122,7 @@ void cmd_cell_select(char *args) {
 }
 
 void cell_select(int col, int row) {
-  printf("cell_select: %d, %d\n", col, row);
+  //printf("cell_select: %d, %d\n", col, row);
   wininfo.w = wininfo.w / wininfo.grid_cols;
   wininfo.h = wininfo.h / wininfo.grid_rows;
   wininfo.x = wininfo.x + (wininfo.w * (col));
@@ -1386,6 +1386,12 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
   KeySym sym = XKeycodeToKeysym(dpy, e->keycode, index);
   char *key = XKeysymToString(sym);
 
+  if (sym == XK_Escape) {
+    cmd_grid_nav("off");
+    update();
+    return HANDLE_STOP;
+  }
+
   if (!(strlen(key) == 1 && isalpha(*key))) {
     return HANDLE_CONTINUE;
   }
@@ -1393,12 +1399,6 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
 
   if (val < 0) {
     return HANDLE_CONTINUE;
-  }
-
-  if (sym == XK_Escape) {
-    cmd_grid_nav("off");
-    update();
-    return HANDLE_STOP;
   }
 
   /* TODO(sissel): Only GRID_LABEL_AA supported right now */
