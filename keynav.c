@@ -63,6 +63,7 @@ typedef struct wininfo {
   int grid_y;
   int border_thickness;
   int center_cut_size;
+  enum { GRID_LABEL_NONE, GRID_LABEL_AA } grid_label;
   int curviewport;
 } wininfo_t;
 
@@ -90,6 +91,8 @@ static int daemonize = 0;
 
 static Display *dpy;
 static Window zone;
+XRectangle *clip_rectangles = NULL;
+int nclip_rectangles = 0;
 
 static GC canvas_gc;
 static Pixmap canvas;
@@ -159,6 +162,8 @@ int percent_of(int num, char *args, float default_val);
 void sigchld(int sig);
 void recordings_save(const char *filename);
 void parse_recordings(const char *filename);
+void openpixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo);
+void closepixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo);
 
 typedef struct dispatch {
   char *command;
@@ -501,6 +506,16 @@ int percent_of(int num, char *args, float default_val) {
   return value;
 }
 
+void updatecliprects(wininfo_t *info, XRectangle **rectangles, int *nrects) {
+  int rects = (info->grid_x + 1) + (info->grid_y + 1) /* grid lines */
+              + (info->grid_x * info->grid_y); /* grid text boxes */
+
+  if (rects != nclip_rectangles) {
+    nclip_rectangles = rects;
+    clip_rectangles = realloc(clip_rectangles, nclip_rectangles * sizeof(XRectangle));
+  }
+}
+
 void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   double w = info->w;
   double h = info->h;
@@ -508,6 +523,9 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   double cell_height;
   double x_off, y_off;
   int i;
+  int rect = 0;
+
+  updatecliprects(info, &clip_rectangles, &nclip_rectangles);
   
 #ifdef PROFILE_THINGS
   struct timespec start, end;
@@ -527,13 +545,6 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
     cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
   }
 
-  if (apply_clip) {
-    cairo_new_path(shape_cairo);
-    cairo_set_operator(shape_cairo, CAIRO_OPERATOR_CLEAR);
-    cairo_rectangle(shape_cairo, 0, 0, w, h);
-    cairo_fill(shape_cairo);
-  }
-
   w -= info->border_thickness;
   h -= info->border_thickness;
   cell_width = (w / info->grid_y);
@@ -543,12 +554,24 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   for (i = 0; i <= info->grid_y; i++) {
     cairo_move_to(canvas_cairo, cell_width * i + x_off, y_off);
     cairo_line_to(canvas_cairo, cell_width * i + x_off, h + 1);
+
+    clip_rectangles[rect].x = cell_width * i;
+    clip_rectangles[rect].y = 0;
+    clip_rectangles[rect].width = info->border_thickness;
+    clip_rectangles[rect].height = info->h;
+    rect++;
   }
 
   /* clip horizontally */
   for (i = 0; i <= info->grid_x; i++) {
     cairo_move_to(canvas_cairo, x_off, cell_height * i + y_off);
     cairo_line_to(canvas_cairo, w + 1, cell_height * i + y_off);
+
+    clip_rectangles[rect].x = 0;
+    clip_rectangles[rect].y = cell_height * i;
+    clip_rectangles[rect].width = info->w;
+    clip_rectangles[rect].height = info->border_thickness;
+    rect++;
   }
 
   cairo_path_t *path = cairo_copy_path(canvas_cairo);
@@ -560,23 +583,6 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
          end.tv_nsec - start.tv_nsec);
   clock_gettime(CLOCK_MONOTONIC, &start);
 #endif
-
-  if (apply_clip) {
-    cairo_new_path(shape_cairo);
-    cairo_append_path(shape_cairo, path);
-    cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
-    cairo_set_line_width(shape_cairo, 3);
-    cairo_stroke(shape_cairo);
-
-#ifdef PROFILE_THINGS
-    XSync(dpy, False);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    printf("updategrid applyclip time: %ld.%09ld\n",
-           end.tv_sec - start.tv_sec,
-           end.tv_nsec - start.tv_nsec);
-    clock_gettime(CLOCK_MONOTONIC, &start);
-#endif
-  } /* if apply_clip */
 
   if (draw) {
     cairo_set_source_rgb(canvas_cairo, 0.5, 0, 0);
@@ -609,6 +615,8 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
   double cell_height;
   double x_off, y_off;
   int row, col;
+
+  int rect = (info->grid_x + 1 + info->grid_y + 1); /* start at end of grid lines */
   
   x_off = info->border_thickness / 2;
   y_off = info->border_thickness / 2;
@@ -621,14 +629,6 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
                            CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(canvas_cairo, FONTSIZE);
     cairo_text_extents(canvas_cairo, "AA", &te);
-  }
-
-  if (apply_clip) {
-    cairo_new_path(shape_cairo);
-    cairo_select_font_face(shape_cairo, "Courier", CAIRO_FONT_SLANT_NORMAL,
-                           CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(shape_cairo, FONTSIZE);
-    cairo_text_extents(shape_cairo, "AA", &te);
   }
 
   w -= info->border_thickness;
@@ -658,6 +658,12 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
                       xpos - rectwidth / 2 + te.x_bearing / 2,
                       ypos - rectheight / 2 + te.y_bearing / 2,
                       rectwidth, rectheight);
+
+      clip_rectangles[rect].x = xpos - rectwidth / 2 + te.x_bearing / 2;
+      clip_rectangles[rect].y = ypos - rectheight / 2 + te.y_bearing / 2;
+      clip_rectangles[rect].width = rectwidth + 1;
+      clip_rectangles[rect].height =  rectheight + 1;
+      rect++;
       label[0]++;
     }
     label[1]++;
@@ -668,14 +674,9 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
   if (draw) {
     cairo_set_line_width(shape_cairo, 2);
     cairo_fill(canvas_cairo);
-    cairo_append_path(shape_cairo, pathcopy);
+    cairo_append_path(canvas_cairo, pathcopy);
     cairo_set_source_rgb(canvas_cairo, .8, .8, 0);
     cairo_stroke(canvas_cairo);
-  }
-
-  if (apply_clip) {
-    cairo_append_path(shape_cairo, pathcopy);
-    cairo_fill(shape_cairo);
   }
   cairo_path_destroy(pathcopy);
 
@@ -707,6 +708,7 @@ void cmd_start(char *args) {
   screen = query_current_screen();
   wininfo.curviewport = screen;
 
+  wininfo.grid_label = GRID_LABEL_AA;
   wininfo.x = viewports[wininfo.curviewport].x;
   wininfo.y = viewports[wininfo.curviewport].y;
   wininfo.w = viewports[wininfo.curviewport].w;
@@ -795,8 +797,8 @@ void cmd_start(char *args) {
     winattr.override_redirect = 1;
     XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
 
-    XSelectInput(dpy, zone, 
-                 StructureNotifyMask | ExposureMask | PointerMotionMask);
+    XSelectInput(dpy, zone, StructureNotifyMask | ExposureMask 
+                 | PointerMotionMask | LeaveWindowMask );
   } /* if zone == 0 */
 }
 
@@ -1127,13 +1129,17 @@ void update() {
 
   if (clip || draw) {
     updategrid(zone, &wininfo, clip, draw);
-    //updategridtext(zone, &wininfo, clip, draw);
 
-    if (clip) {
-      XShapeCombineMask(dpy, zone, ShapeBounding, 0, 0, shape, ShapeSet);
+    if (wininfo.grid_label != GRID_LABEL_NONE) {
+      updategridtext(zone, &wininfo, clip, draw);
     }
+
     if (draw) {
       XCopyArea(dpy, canvas, zone, canvas_gc, 0, 0, wininfo.w, wininfo.h, 0, 0);
+    }
+    if (clip) {
+      XShapeCombineRectangles(dpy, zone, ShapeBounding, 0, 0, 
+                              clip_rectangles, nclip_rectangles, ShapeSet, 0);
     }
   }
 
@@ -1563,6 +1569,36 @@ void parse_recordings(const char *filename) {
   fclose(fp);
 }
 
+void openpixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo) {
+  XRectangle rect;
+  if (mouseinfo->x == -1 && mouseinfo->y == -1) {
+    return;
+  }
+
+  rect.x = mouseinfo->x;
+  rect.y = mouseinfo->y;
+  rect.width = 1;
+  rect.height = 1;
+
+  XShapeCombineRectangles(dpy, zone, ShapeBounding, 0, 0, &rect, 1,
+                          ShapeSubtract, 0);
+} /* void openpixel */
+
+void closepixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo) {
+  XRectangle rect;
+  if (mouseinfo->x == -1 && mouseinfo->y == -1) {
+    return;
+  }
+
+  rect.x = mouseinfo->x;
+  rect.y = mouseinfo->y;
+  rect.width = 1;
+  rect.height = 1;
+
+  XShapeCombineRectangles(dpy, zone, ShapeBounding, 0, 0, &rect, 1,
+                          ShapeUnion, 0);
+} /* void closepixel */
+
 int main(int argc, char **argv) {
   char *pcDisplay;
   int ret;
@@ -1633,14 +1669,18 @@ int main(int argc, char **argv) {
         break;
 
       case MotionNotify:
-        mouseinfo.x = e.xmotion.x_root;
-        mouseinfo.y = e.xmotion.y_root;
-        update();
+        if (mouseinfo.x != -1 && mouseinfo.y != -1) {
+          closepixel(dpy, zone, &mouseinfo);
+        }
+        mouseinfo.x = e.xmotion.x;
+        mouseinfo.y = e.xmotion.y;
+        openpixel(dpy, zone, &mouseinfo);
         break;
 
       // Ignorable events.
       case GraphicsExpose:
-      case NoExpose:
+      case NoExpose:      
+      case LeaveNotify:   // Mouse left the window
       case KeyRelease:    // key was released
       case DestroyNotify: // window was destroyed
       case UnmapNotify:   // window was unmapped (hidden)
@@ -1653,4 +1693,4 @@ int main(int argc, char **argv) {
   }
 
   xdo_free(xdo);
-}
+} /* int main */
