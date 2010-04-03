@@ -564,11 +564,11 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   w -= info->border_thickness;
   h -= info->border_thickness;
-  cell_width = (w / info->grid_rows);
-  cell_height = (h / info->grid_cols);
+  cell_width = (w / info->grid_cols);
+  cell_height = (h / info->grid_rows);
 
   /* clip vertically */
-  for (i = 0; i <= info->grid_rows; i++) {
+  for (i = 0; i <= info->grid_cols; i++) {
     cairo_move_to(canvas_cairo, cell_width * i + x_off, y_off);
     cairo_line_to(canvas_cairo, cell_width * i + x_off, h + 1);
 
@@ -580,7 +580,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   }
 
   /* clip horizontally */
-  for (i = 0; i <= info->grid_cols; i++) {
+  for (i = 0; i <= info->grid_rows; i++) {
     cairo_move_to(canvas_cairo, x_off, cell_height * i + y_off);
     cairo_line_to(canvas_cairo, w + 1, cell_height * i + y_off);
 
@@ -650,8 +650,8 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   w -= info->border_thickness;
   h -= info->border_thickness;
-  cell_width = (w / info->grid_rows);
-  cell_height = (h / info->grid_cols);
+  cell_width = (w / info->grid_cols);
+  cell_height = (h / info->grid_rows);
 
   h++;
   w++;
@@ -661,11 +661,9 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   char label[3] = "AA";
 
-  //printf("Grid: %d x %d\n", info->grid_cols, info->grid_rows);
-  //printf("nrec: %d\n", nclip_rectangles);
-  for (row = 0; row < info->grid_cols; row++) {
+  for (row = 0; row < info->grid_rows; row++) {
     label[0] = 'A';
-    for (col = 0; col < info->grid_rows; col++) {
+    for (col = 0; col < info->grid_cols; col++) {
       int rectwidth = te.width + 25;
       int rectheight = te.height + 8;
       int xpos = cell_width * col + x_off + (cell_width / 2);
@@ -713,9 +711,9 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   label[1] = 'A';
   cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
-  for (row = 0; row < info->grid_cols; row++) {
+  for (row = 0; row < info->grid_rows; row++) {
     label[0] = 'A';
-    for (col = 0; col < info->grid_rows; col++) {
+    for (col = 0; col < info->grid_cols; col++) {
       int rectwidth = te.width + 25;
       int rectheight = te.height + 15;
       int xpos = cell_width * col + x_off + (cell_width / 2);
@@ -1083,12 +1081,12 @@ void cmd_grid(char *args) {
 }
 
 void cmd_cell_select(char *args) {
-  int x, y, z;
+  int row, col, z;
   int cell_width, cell_height;
-  x = y = z = 0;
+  row = col = z = 0;
 
   // Try to parse 'NxM' where N and M are a number.
-  if (sscanf(args, "%dx%d", &x, &y) < 2) {
+  if (sscanf(args, "%dx%d", &col, &row) < 2) {
     // Otherwise, try parsing just number.
     z = atoi(args);
   }
@@ -1096,39 +1094,39 @@ void cmd_cell_select(char *args) {
   // if z > 0, then this means we said "cell-select N"
   if (z > 0) {
     double dx = (double)z / (double)wininfo.grid_rows;
-    x = (z / wininfo.grid_rows);
-    if ( (double)x != dx ) {
-      x++;
+    col = (z / wininfo.grid_rows);
+    if ( (double)col != dx ) {
+      col++;
     }
-    y = (z % wininfo.grid_rows);
-    if ( 0 == y ) {
-      y = wininfo.grid_rows;
+    row = (z % wininfo.grid_rows);
+    if ( 0 == row ) {
+      row = wininfo.grid_rows;
     }
   }
 
-  if (x <= 0 && y <= 0) {
+  if (col <= 0 && row <= 0) {
     fprintf(stderr, "Cell number cannot be zero or negative. I was given"
-            "x=%d and y=%d\n", x, y);
+            "columns=%d and rows=%d\n", col, row);
     return;
   }
 
-  if (x > wininfo.grid_cols && y > wininfo.grid_rows) {
+  if (col > wininfo.grid_cols && row > wininfo.grid_rows) {
     fprintf(stderr, "The active grid is %dx%d, and you selected %dx%d which "
-            "does not exist.\n", wininfo.grid_cols, wininfo.grid_rows, x, y);
+            "does not exist.\n", wininfo.grid_cols, wininfo.grid_rows, col, row);
     return;
   }
 
   // else, then we said cell-select NxM
   // cell_selection is 0-based, so subtract 1.
-  cell_select(x - 1, y - 1);
+  cell_select(col - 1, row - 1);
 }
 
-void cell_select(int x, int y) {
-  //printf("cell_select: %d, %d\n", x, y);
-  wininfo.w = wininfo.w / wininfo.grid_rows;
-  wininfo.h = wininfo.h / wininfo.grid_cols;
-  wininfo.x = wininfo.x + (wininfo.w * (x));
-  wininfo.y = wininfo.y + (wininfo.h * (y));
+void cell_select(int col, int row) {
+  printf("cell_select: %d, %d\n", col, row);
+  wininfo.w = wininfo.w / wininfo.grid_cols;
+  wininfo.h = wininfo.h / wininfo.grid_rows;
+  wininfo.x = wininfo.x + (wininfo.w * (col));
+  wininfo.y = wininfo.y + (wininfo.h * (row));
 }
 
 void cmd_record(char *args) {
