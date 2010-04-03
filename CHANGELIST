@@ -1,6 +1,14 @@
-????????????:
-  - Use cairo graphics for drawing instead of raw Xlib. This makes drawing a little bit
-    less painful and will allow me to more quickly prototype ideas in the future.
+0.20100403.*:
+  - Use cairo graphics for drawing instead of raw Xlib. This makes drawing a
+    little bit less painful and will allow me to more quickly prototype ideas
+    in the future.
+  - Add 'grid nav' navigation. The original prototype was written by Nazri in 2008.
+    This adds a new command: grid-nav. This command takes one argument, of:
+    toggle, on, off.  When on grid navigation, you can select a specific grid
+    by coordinate. The coordinates at this time are A to Z for both row and
+    column. 
+    For example, if your grid is 2x2, you can select the top-right cell by
+    typing 'AB' when grid nav is activated.
 
 0.20100302.*:
   - Started using glib for dynamic arrays (GPtrArray)
