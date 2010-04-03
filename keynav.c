@@ -661,9 +661,13 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   char label[3] = "AA";
 
-  for (row = 0; row < info->grid_rows; row++) {
+  int col_selected = 0;
+  for (col = 0; col < info->grid_cols; col++) {
     label[0] = 'A';
-    for (col = 0; col < info->grid_cols; col++) {
+    col_selected = (appstate.grid_nav && appstate.grid_nav_col == col 
+                    && appstate.grid_nav_state == GRID_NAV_ROW);
+
+    for (row = 0; row < info->grid_rows; row++) {
       int rectwidth = te.width + 25;
       int rectheight = te.height + 8;
       int xpos = cell_width * col + x_off + (cell_width / 2);
@@ -672,13 +676,6 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
       /* If the current column is the one selected by grid nav, use
        * a different color */
-      if (appstate.grid_nav && appstate.grid_nav_col == col 
-          && appstate.grid_nav_state == GRID_NAV_ROW) {
-        cairo_set_source_rgb(canvas_cairo, 0, .3, .3);
-      } else {
-        cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
-      }
-
       //printf("Grid geom: %fx%f @ %d,%d\n", 
              //xpos - rectwidth / 2 + te.x_bearing / 2,
              //ypos - rectheight / 2 + te.y_bearing / 2,
@@ -691,43 +688,40 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
         cairo_path_t *pathcopy;
         pathcopy = cairo_copy_path(canvas_cairo);
         cairo_set_line_width(shape_cairo, 2);
+
+        if (col_selected) {
+          cairo_set_source_rgb(canvas_cairo, 0, .3, .3);
+        } else {
+          cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
+        } 
         cairo_fill(canvas_cairo);
         cairo_append_path(canvas_cairo, pathcopy);
         cairo_set_source_rgb(canvas_cairo, .8, .8, 0);
         cairo_stroke(canvas_cairo);
         cairo_path_destroy(pathcopy);
-      }
 
-      clip_rectangles[rect].x = xpos - rectwidth / 2 + te.x_bearing / 2;
-      clip_rectangles[rect].y = ypos - rectheight / 2 + te.y_bearing / 2;
-      clip_rectangles[rect].width = rectwidth + 1;
-      clip_rectangles[rect].height =  rectheight + 1;
-      rect++;
-      label[0]++;
-    }
-    label[1]++;
-  } /* Draw rectangles */
-
-
-  label[1] = 'A';
-  cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
-  for (row = 0; row < info->grid_rows; row++) {
-    label[0] = 'A';
-    for (col = 0; col < info->grid_cols; col++) {
-      int rectwidth = te.width + 25;
-      int rectheight = te.height + 15;
-      int xpos = cell_width * col + x_off + (cell_width / 2);
-      int ypos = cell_height * row + y_off + (cell_height / 2);
-
-      if (draw) {
+        if (col_selected) {
+          cairo_set_source_rgb(canvas_cairo, 1, 1, 1);
+        } else {
+          cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
+        } 
+        cairo_fill(canvas_cairo);
         cairo_move_to(canvas_cairo, xpos - te.width / 2, ypos);
         cairo_show_text(canvas_cairo, label);
       }
+
+      if (apply_clip) {
+        clip_rectangles[rect].x = xpos - rectwidth / 2 + te.x_bearing / 2;
+        clip_rectangles[rect].y = ypos - rectheight / 2 + te.y_bearing / 2;
+        clip_rectangles[rect].width = rectwidth + 1;
+        clip_rectangles[rect].height =  rectheight + 1;
+        rect++;
+      }
       label[0]++;
     }
     label[1]++;
-  }
-}
+  } /* Draw rectangles and text */
+} /* void updategridtext */
 
 void cmd_start(char *args) {
   XSetWindowAttributes winattr;
