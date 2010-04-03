@@ -1318,13 +1318,12 @@ void handle_keypress(XKeyEvent *e) {
     }
   }
 
-  //printf("Key: %s\n", key);
   if (appstate.grid_nav) {
     if (handle_gridnav(e) == HANDLE_STOP) {
-      printf("STOP for key\n");
       return;
     }
   }
+
   /* Loop over known keybindings */
   for (i = 0; i < keybindings->len; i++) {
     keybinding_t *kbt = g_ptr_array_index(keybindings, i);
@@ -1405,10 +1404,8 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
   /* TODO(sissel): Only GRID_LABEL_AA supported right now */
   if (appstate.grid_nav_state == GRID_NAV_COL) {
     if (val >= wininfo.grid_cols) {
-      printf("Col out of bounds\n");
       return HANDLE_CONTINUE; /* Invalid key in this grid, pass */
     }
-    printf("Col %d OK\n", val);
     appstate.grid_nav_state = GRID_NAV_ROW;
     appstate.grid_nav_col = val;
     appstate.need_draw = 1;
@@ -1418,10 +1415,9 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
     if (val >= wininfo.grid_rows) {
       return HANDLE_CONTINUE; /* Invalid key in this grid, pass */
     }
-    appstate.grid_nav_row = tolower(*key) - 'a';
-    /* Select this grid */
-    //printf("Selected: %d,%d (%c%c)\n", appstate.grid_nav_col, appstate.grid_nav_row,
-    //'a' + appstate.grid_nav_col, 'a' + appstate.grid_nav_row);
+    appstate.grid_nav_row = val;
+
+    /* We have a full set of coordinates now; select that grid position */
     cell_select(appstate.grid_nav_col, appstate.grid_nav_row);
     appstate.grid_nav_state = GRID_NAV_COL;
     update();
