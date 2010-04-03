@@ -42,8 +42,17 @@ struct appstate {
   int active;
   int dragging;
   int need_draw;
+  int need_moveresize;
   enum { record_getkey, record_ing, record_off } recording;
+
+  int grid_nav; /* 1 if grid nav is active */
+  enum { GRID_NAV_COL, GRID_NAV_ROW } grid_nav_state;
+  enum { GRID_LABEL_NONE, GRID_LABEL_AA } grid_label;
+  int grid_nav_col;
+  int grid_nav_row;
 };
+
+typedef enum { HANDLE_CONTINUE, HANDLE_STOP } handler_info_t;
 
 typedef struct recording {
   int keycode;
@@ -59,11 +68,10 @@ typedef struct wininfo {
   int y;
   int w;
   int h;
-  int grid_x;
-  int grid_y;
+  int grid_rows;
+  int grid_cols;
   int border_thickness;
   int center_cut_size;
-  enum { GRID_LABEL_NONE, GRID_LABEL_AA } grid_label;
   int curviewport;
 } wininfo_t;
 
@@ -107,6 +115,7 @@ static struct appstate appstate = {
   .active = 0,
   .dragging = 0,
   .recording = record_off,
+  .grid_nav = 0,
 };
 
 static int drag_button = 0;
@@ -128,6 +137,7 @@ void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
 void cmd_end(char *args);
 void cmd_grid(char *args);
+void cmd_grid_nav(char *args);
 void cmd_history_back(char *args);
 void cmd_move_down(char *args);
 void cmd_move_left(char *args);
@@ -149,6 +159,9 @@ void parse_config();
 void parse_config_line(char *line);
 void save_history_point();
 void restore_history_point(int moves_ago);
+void cell_select(int x, int y);
+handler_info_t handle_recording(XKeyEvent *e);
+handler_info_t handle_gridnav(XKeyEvent *e);
 
 void query_screens();
 void query_screen_xinerama();
@@ -184,6 +197,7 @@ dispatch_t dispatch[] = {
 
   // Grid commands
   "grid", cmd_grid,
+  "grid-nav", cmd_grid_nav,
   "cell-select", cmd_cell_select,
 
   // Mouse activity
@@ -507,8 +521,8 @@ int percent_of(int num, char *args, float default_val) {
 }
 
 void updatecliprects(wininfo_t *info, XRectangle **rectangles, int *nrects) {
-  int rects = (info->grid_x + 1) + (info->grid_y + 1) /* grid lines */
-              + (info->grid_x * info->grid_y); /* grid text boxes */
+  int rects = (info->grid_cols + 1) + (info->grid_rows + 1) /* grid lines */
+              + (info->grid_cols * info->grid_rows); /* grid text boxes */
 
   if (rects != nclip_rectangles) {
     nclip_rectangles = rects;
@@ -525,7 +539,10 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   int i;
   int rect = 0;
 
-  updatecliprects(info, &clip_rectangles, &nclip_rectangles);
+  if (apply_clip) {
+    updatecliprects(info, &clip_rectangles, &nclip_rectangles);
+    memset(clip_rectangles, 0, nclip_rectangles * sizeof(XRectangle));
+  }
   
 #ifdef PROFILE_THINGS
   struct timespec start, end;
@@ -547,11 +564,11 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   w -= info->border_thickness;
   h -= info->border_thickness;
-  cell_width = (w / info->grid_y);
-  cell_height = (h / info->grid_x);
+  cell_width = (w / info->grid_rows);
+  cell_height = (h / info->grid_cols);
 
   /* clip vertically */
-  for (i = 0; i <= info->grid_y; i++) {
+  for (i = 0; i <= info->grid_rows; i++) {
     cairo_move_to(canvas_cairo, cell_width * i + x_off, y_off);
     cairo_line_to(canvas_cairo, cell_width * i + x_off, h + 1);
 
@@ -563,7 +580,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   }
 
   /* clip horizontally */
-  for (i = 0; i <= info->grid_x; i++) {
+  for (i = 0; i <= info->grid_cols; i++) {
     cairo_move_to(canvas_cairo, x_off, cell_height * i + y_off);
     cairo_line_to(canvas_cairo, w + 1, cell_height * i + y_off);
 
@@ -616,7 +633,7 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
   double x_off, y_off;
   int row, col;
 
-  int rect = (info->grid_x + 1 + info->grid_y + 1); /* start at end of grid lines */
+  int rect = (info->grid_cols + 1 + info->grid_rows + 1); /* start at end of grid lines */
   
   x_off = info->border_thickness / 2;
   y_off = info->border_thickness / 2;
@@ -633,31 +650,55 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   w -= info->border_thickness;
   h -= info->border_thickness;
-  cell_width = (w / info->grid_y);
-  cell_height = (h / info->grid_x);
+  cell_width = (w / info->grid_rows);
+  cell_height = (h / info->grid_cols);
 
   h++;
   w++;
 
-  printf("bearing: %f,%f\n", te.x_bearing, te.y_bearing);
-  printf("size: %f,%f\n", te.width, te.height);
+  //printf("bearing: %f,%f\n", te.x_bearing, te.y_bearing);
+  //printf("size: %f,%f\n", te.width, te.height);
 
   char label[3] = "AA";
 
-  cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
-  cairo_set_operator(shape_cairo, CAIRO_OPERATOR_OVER);
-  for (row = 0; row < info->grid_y; row++) {
+  //printf("Grid: %d x %d\n", info->grid_cols, info->grid_rows);
+  //printf("nrec: %d\n", nclip_rectangles);
+  for (row = 0; row < info->grid_cols; row++) {
     label[0] = 'A';
-    for (col = 0; col < info->grid_x; col++) {
+    for (col = 0; col < info->grid_rows; col++) {
       int rectwidth = te.width + 25;
-      int rectheight = te.height + 15;
+      int rectheight = te.height + 8;
       int xpos = cell_width * col + x_off + (cell_width / 2);
       int ypos = cell_height * row + y_off + (cell_height / 2);
+      //printf("Grid: %c%c\n", label[0], label[1]);
 
+      /* If the current column is the one selected by grid nav, use
+       * a different color */
+      if (appstate.grid_nav && appstate.grid_nav_col == col 
+          && appstate.grid_nav_state == GRID_NAV_ROW) {
+        cairo_set_source_rgb(canvas_cairo, 0, .3, .3);
+      } else {
+        cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
+      }
+
+      //printf("Grid geom: %fx%f @ %d,%d\n", 
+             //xpos - rectwidth / 2 + te.x_bearing / 2,
+             //ypos - rectheight / 2 + te.y_bearing / 2,
+             //rectwidth, rectheight);
       cairo_rectangle(canvas_cairo,
                       xpos - rectwidth / 2 + te.x_bearing / 2,
                       ypos - rectheight / 2 + te.y_bearing / 2,
                       rectwidth, rectheight);
+      if (draw) {
+        cairo_path_t *pathcopy;
+        pathcopy = cairo_copy_path(canvas_cairo);
+        cairo_set_line_width(shape_cairo, 2);
+        cairo_fill(canvas_cairo);
+        cairo_append_path(canvas_cairo, pathcopy);
+        cairo_set_source_rgb(canvas_cairo, .8, .8, 0);
+        cairo_stroke(canvas_cairo);
+        cairo_path_destroy(pathcopy);
+      }
 
       clip_rectangles[rect].x = xpos - rectwidth / 2 + te.x_bearing / 2;
       clip_rectangles[rect].y = ypos - rectheight / 2 + te.y_bearing / 2;
@@ -669,22 +710,12 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
     label[1]++;
   } /* Draw rectangles */
 
-  cairo_path_t *pathcopy;
-  pathcopy = cairo_copy_path(canvas_cairo);
-  if (draw) {
-    cairo_set_line_width(shape_cairo, 2);
-    cairo_fill(canvas_cairo);
-    cairo_append_path(canvas_cairo, pathcopy);
-    cairo_set_source_rgb(canvas_cairo, .8, .8, 0);
-    cairo_stroke(canvas_cairo);
-  }
-  cairo_path_destroy(pathcopy);
 
   label[1] = 'A';
   cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
-  for (row = 0; row < info->grid_y; row++) {
+  for (row = 0; row < info->grid_cols; row++) {
     label[0] = 'A';
-    for (col = 0; col < info->grid_x; col++) {
+    for (col = 0; col < info->grid_rows; col++) {
       int rectwidth = te.width + 25;
       int rectheight = te.height + 15;
       int xpos = cell_width * col + x_off + (cell_width / 2);
@@ -708,15 +739,17 @@ void cmd_start(char *args) {
   screen = query_current_screen();
   wininfo.curviewport = screen;
 
-  wininfo.grid_label = GRID_LABEL_AA;
+  appstate.grid_nav_row = -1;
+  appstate.grid_nav_col = -1;
+
   wininfo.x = viewports[wininfo.curviewport].x;
   wininfo.y = viewports[wininfo.curviewport].y;
   wininfo.w = viewports[wininfo.curviewport].w;
   wininfo.h = viewports[wininfo.curviewport].h;
   
   /* Default start with 4 cells, 2x2 */
-  wininfo.grid_x = 2;
-  wininfo.grid_y = 2;
+  wininfo.grid_rows = 2;
+  wininfo.grid_cols = 2;
 
   wininfo.border_thickness = 3;
   wininfo.center_cut_size = 3;
@@ -762,6 +795,7 @@ void cmd_start(char *args) {
 
   appstate.active = True;
   appstate.need_draw = 1;
+  appstate.need_moveresize = 1;
 
   if (zone == 0) { /* Create our window for the first time */
     viewport_t *viewport = &(viewports[wininfo.curviewport]);
@@ -1004,23 +1038,48 @@ void cmd_drag(char *args) {
   }
 }
 
-void cmd_grid(char *args) {
-  int grid_x, grid_y;
+void cmd_grid_nav(char *args) {
 
-  // Try to parse 'NxN' where N is a number.
-  if (sscanf(args, "%dx%d", &grid_x, &grid_y) <= 0) {
-    // Otherwise, try parsing a number.
-    grid_x = grid_y = atoi(args);
+  if (!strcmp("on", args)) {
+    appstate.grid_label = GRID_LABEL_AA;
+  } else if (!strcmp("off", args)) {
+    appstate.grid_label = GRID_LABEL_NONE;
+  } else if (!strcmp("toggle", args)) {
+    if (appstate.grid_label == GRID_LABEL_NONE) {
+      appstate.grid_label = GRID_LABEL_AA;
+    } else {
+      appstate.grid_label = GRID_LABEL_NONE;
+    }
   }
 
-  if (grid_x <= 0 || grid_y <= 0) {
-    fprintf(stderr, "Invalid grid segmentation: %dx%d\n", grid_x, grid_y);
+  /* Set state grid_nav if grid_label is anything but NONE */
+  if (appstate.grid_label == GRID_LABEL_NONE) {
+    appstate.grid_nav = 0;
+  } else {
+    appstate.grid_nav = 1;
+    appstate.grid_nav_state = GRID_NAV_COL;
+  }
+
+  appstate.need_draw = 1;
+}
+
+void cmd_grid(char *args) {
+  int grid_cols, grid_rows;
+
+  // Try to parse 'NxN' where N is a number.
+  if (sscanf(args, "%dx%d", &grid_cols, &grid_rows) <= 0) {
+    // Otherwise, try parsing a number.
+    grid_cols = grid_rows = atoi(args);
+  }
+
+  if (grid_cols <= 0 || grid_rows <= 0) {
+    fprintf(stderr, "Invalid grid segmentation: %dx%d\n", grid_cols, grid_rows);
     fprintf(stderr, "Grid x and y must both be greater than 0.\n");
     return;
   }
 
-  wininfo.grid_x = grid_x;
-  wininfo.grid_y = grid_y;
+  wininfo.grid_cols = grid_cols;
+  wininfo.grid_rows = grid_rows;
 }
 
 void cmd_cell_select(char *args) {
@@ -1036,14 +1095,14 @@ void cmd_cell_select(char *args) {
 
   // if z > 0, then this means we said "cell-select N"
   if (z > 0) {
-    double dx = (double)z / (double)wininfo.grid_y;
-    x = (z / wininfo.grid_y);
+    double dx = (double)z / (double)wininfo.grid_rows;
+    x = (z / wininfo.grid_rows);
     if ( (double)x != dx ) {
       x++;
     }
-    y = (z % wininfo.grid_y);
+    y = (z % wininfo.grid_rows);
     if ( 0 == y ) {
-      y = wininfo.grid_y;
+      y = wininfo.grid_rows;
     }
   }
 
@@ -1053,17 +1112,23 @@ void cmd_cell_select(char *args) {
     return;
   }
 
-  if (x > wininfo.grid_x && y > wininfo.grid_y) {
+  if (x > wininfo.grid_cols && y > wininfo.grid_rows) {
     fprintf(stderr, "The active grid is %dx%d, and you selected %dx%d which "
-            "does not exist.\n", wininfo.grid_x, wininfo.grid_y, x, y);
+            "does not exist.\n", wininfo.grid_cols, wininfo.grid_rows, x, y);
     return;
   }
 
   // else, then we said cell-select NxM
-  wininfo.w = wininfo.w / wininfo.grid_y;
-  wininfo.h = wininfo.h / wininfo.grid_x;
-  wininfo.x = wininfo.x + (wininfo.w * (y - 1));
-  wininfo.y = wininfo.y + (wininfo.h * (x - 1));
+  // cell_selection is 0-based, so subtract 1.
+  cell_select(x - 1, y - 1);
+}
+
+void cell_select(int x, int y) {
+  //printf("cell_select: %d, %d\n", x, y);
+  wininfo.w = wininfo.w / wininfo.grid_rows;
+  wininfo.h = wininfo.h / wininfo.grid_cols;
+  wininfo.x = wininfo.x + (wininfo.w * (x));
+  wininfo.y = wininfo.y + (wininfo.h * (y));
 }
 
 void cmd_record(char *args) {
@@ -1111,11 +1176,15 @@ void update() {
   }
 
   if (appstate.need_draw) {
-    move = 1;
     clip = 1;
     draw = 1;
-    resize = 1;
     appstate.need_draw = 0;
+  }
+
+  if (appstate.need_moveresize) {
+    move = 1;
+    resize = 1;
+    appstate.need_moveresize = 0;
   }
 
   //printf("move: %d, clip: %d, draw: %d, resize: %d\n", move, clip, draw, resize);
@@ -1130,7 +1199,7 @@ void update() {
   if (clip || draw) {
     updategrid(zone, &wininfo, clip, draw);
 
-    if (wininfo.grid_label != GRID_LABEL_NONE) {
+    if (appstate.grid_label != GRID_LABEL_NONE) {
       updategridtext(zone, &wininfo, clip, draw);
     }
 
@@ -1237,7 +1306,6 @@ void viewport_left() {
 void handle_keypress(XKeyEvent *e) {
   int i;
   int key_found = 0;
-
   /* If a mouse button is pressed (like, when we're dragging),
    * then the 'mods' will include values like Button1Mask. 
    * Let's remove those, as they cause breakage */
@@ -1247,25 +1315,18 @@ void handle_keypress(XKeyEvent *e) {
   e->state &= ~(LockMask | Mod2Mask);
 
   if (appstate.recording == record_getkey) {
-    appstate.recording = record_ing; /* start recording actions */
-    /* TODO(sissel): support keys with keystrokes like shift+a */
-
-    /* check existing recording keycodes if we need to override it */
-    for (i = 0; i < recordings->len; i++) {
-      recording_t *rec = (recording_t *) g_ptr_array_index(recordings, i);
-      if (rec->keycode == e->keycode) {
-        g_ptr_array_free(rec->commands, TRUE);
-        g_ptr_array_remove_index_fast(recordings, i);
-        i--; /* array removal will shift everything down one to make up for the loss 
-                we'll need to redo this index */
-      }
+    if (handle_recording(e) == HANDLE_STOP) {
+      return;
     }
-
-    //printf("Recording as keycode:%d\n", e->keycode);
-    active_recording->keycode = e->keycode;
-    return;
   }
 
+  //printf("Key: %s\n", key);
+  if (appstate.grid_nav) {
+    if (handle_gridnav(e) == HANDLE_STOP) {
+      printf("STOP for key\n");
+      return;
+    }
+  }
   /* Loop over known keybindings */
   for (i = 0; i < keybindings->len; i++) {
     keybinding_t *kbt = g_ptr_array_index(keybindings, i);
@@ -1292,6 +1353,85 @@ void handle_keypress(XKeyEvent *e) {
       }
     }
   }
+} /* void handle_keypress */
+
+handler_info_t handle_recording(XKeyEvent *e) {
+  int i;
+  appstate.recording = record_ing; /* start recording actions */
+  /* TODO(sissel): support keys with keystrokes like shift+a */
+
+  /* check existing recording keycodes if we need to override it */
+  for (i = 0; i < recordings->len; i++) {
+    recording_t *rec = (recording_t *) g_ptr_array_index(recordings, i);
+    if (rec->keycode == e->keycode) {
+      g_ptr_array_free(rec->commands, TRUE);
+      g_ptr_array_remove_index_fast(recordings, i);
+      i--; /* array removal will shift everything down one to make up for the loss 
+              we'll need to redo this index */
+    }
+  }
+
+  //printf("Recording as keycode:%d\n", e->keycode);
+  active_recording->keycode = e->keycode;
+  return;
+}
+
+handler_info_t handle_gridnav(XKeyEvent *e) {
+  int index = 0;
+
+  if (e->state & 0x2000) { /* ISO Level3 Shift */
+    index += 2;
+  }
+  if (e->state & ShiftMask) {
+    index += 1;
+  }
+
+  KeySym sym = XKeycodeToKeysym(dpy, e->keycode, index);
+  char *key = XKeysymToString(sym);
+
+  if (!(strlen(key) == 1 && isalpha(*key))) {
+    return HANDLE_CONTINUE;
+  }
+  int val = tolower(*key) - 'a';
+
+  if (val < 0) {
+    return HANDLE_CONTINUE;
+  }
+
+  if (sym == XK_Escape) {
+    cmd_grid_nav("off");
+    update();
+    return HANDLE_STOP;
+  }
+
+  /* TODO(sissel): Only GRID_LABEL_AA supported right now */
+  if (appstate.grid_nav_state == GRID_NAV_COL) {
+    if (val >= wininfo.grid_cols) {
+      printf("Col out of bounds\n");
+      return HANDLE_CONTINUE; /* Invalid key in this grid, pass */
+    }
+    printf("Col %d OK\n", val);
+    appstate.grid_nav_state = GRID_NAV_ROW;
+    appstate.grid_nav_col = val;
+    appstate.need_draw = 1;
+    update();
+    save_history_point();
+  } else if (appstate.grid_nav_state == GRID_NAV_ROW) {
+    if (val >= wininfo.grid_rows) {
+      return HANDLE_CONTINUE; /* Invalid key in this grid, pass */
+    }
+    appstate.grid_nav_row = tolower(*key) - 'a';
+    /* Select this grid */
+    //printf("Selected: %d,%d (%c%c)\n", appstate.grid_nav_col, appstate.grid_nav_row,
+    //'a' + appstate.grid_nav_col, 'a' + appstate.grid_nav_row);
+    cell_select(appstate.grid_nav_col, appstate.grid_nav_row);
+    appstate.grid_nav_state = GRID_NAV_COL;
+    update();
+    save_history_point();
+    appstate.grid_nav_row = -1;
+    appstate.grid_nav_col = -1;
+  }
+  return HANDLE_STOP;
 }
 
 void handle_commands(char *commands) {
@@ -1324,12 +1464,13 @@ void handle_commands(char *commands) {
        */
 
       /* If this command starts with a dispatch function, call it */
-      if (!strncmp(tok, dispatch[i].command, strlen(dispatch[i].command))) {
+      size_t cmdlen = strcspn(tok, " \t");
+      if (!strncmp(tok, dispatch[i].command, cmdlen)) {
         /* tok + len + 1 is
          * "command arg1 arg2"
          *          ^^^^^^^^^ <-- this 
          */
-        char *args = tok + strlen(dispatch[i].command);
+        char *args = tok + cmdlen;
         if (*args == '\0')
           args = "";
         else
@@ -1386,6 +1527,7 @@ void restore_history_point(int moves_ago) {
   wininfo_t *previous = &(wininfo_history[wininfo_history_cursor]);
   memcpy(&wininfo, previous, sizeof(wininfo));
   appstate.need_draw = 1;
+  appstate.need_moveresize = 1;
 }
 
 /* Sort viewports, left to right.
