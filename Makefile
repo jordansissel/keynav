@@ -22,7 +22,7 @@ LDFLAGS+=-pg -g
 all: keynav
 
 clean:
-	rm *.o keynav || true;
+	rm *.o keynav keynav-version.h || true;
 	$(MAKE) -C xdotool clean || true
 
 keynav.o: keynav_version.h
