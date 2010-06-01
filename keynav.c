@@ -1019,14 +1019,14 @@ void cmd_drag(char *args) {
     xdo_mouseup(xdo, CURRENTWINDOW, button);
   } else { /* Start dragging */
     appstate.dragging = True;
-    xdo_keysequence_down(xdo, 0, drag_modkeys);
+    xdo_keysequence_down(xdo, 0, drag_modkeys, 12000);
     xdo_mousedown(xdo, CURRENTWINDOW, button);
 
     /* Sometimes we need to move a little to tell the app we're dragging */
     /* TODO(sissel): Make this a 'mousewiggle' command */
     xdo_mousemove_relative(xdo, 1, 0);
     xdo_mousemove_relative(xdo, -1, 0);
-    xdo_keysequence_up(xdo, 0, drag_modkeys);
+    xdo_keysequence_up(xdo, 0, drag_modkeys, 12000);
   }
 }
 
