@@ -1,3 +1,7 @@
+0.20100601.*:
+  - Update to follow API changes in libxdo.
+    Now requires libxdo = 2.x
+
 0.20100403.*:
   - Use cairo graphics for drawing instead of raw Xlib. This makes drawing a
     little bit less painful and will allow me to more quickly prototype ideas
