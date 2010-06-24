@@ -1,3 +1,9 @@
+0.20100623.*
+  - No functional changes.
+  - Remove monolithic build against libxdo. xdotool is now available in just
+    about every major platform (fedora, ubuntu, archlinux, freebsd, and more)
+    that we don't need to ship with xdotool.
+
 0.20100601.*:
   - Update to follow API changes in libxdo.
     Now requires libxdo = 2.x
