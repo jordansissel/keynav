@@ -23,35 +23,18 @@ all: keynav
 
 clean:
 	rm *.o keynav keynav-version.h || true;
-	$(MAKE) -C xdotool clean || true
 
 keynav.o: keynav_version.h
 keynav_version.h: version.sh
 
-# We'll try to detect 'libxdo' and use it if we find it.
-# otherwise, build monolithic.
 keynav: keynav.o
-	@set -x; \
-	if $(LD) -o /dev/null -lxdo > /dev/null 2>&1 ; then \
-		$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
-	else \
-		$(MAKE) keynav.static; \
-	fi
-
-.PHONY: keynav.static
-keynav.static: keynav.o xdo.o
-	$(CC) xdo.o keynav.o -o keynav `pkg-config --libs xext xtst` $(LDFLAGS)
+	$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
 
 keynav_version.h:
 	sh version.sh --header > $@
 
 VERSION:
 	sh version.sh --shell > $@
-
-
-xdo.o:
-	$(MAKE) -C xdotool xdo.o
-	cp xdotool/xdo.o .
 
 pre-create-package:
 	rm -f keynav_version.h VERSION
@@ -60,7 +43,7 @@ pre-create-package:
 create-package: clean pre-create-package keynav_version.h
 	NAME=keynav-$(VERSION); \
 	mkdir $${NAME}; \
-	rsync --exclude '.*' -av *.c $(OTHERFILES) xdotool $${NAME}/; \
+	rsync --exclude '.*' -av *.c $(OTHERFILES) $${NAME}/; \
 	tar -zcf $${NAME}.tar.gz $${NAME}/; \
 	rm -rf $${NAME}/
 
