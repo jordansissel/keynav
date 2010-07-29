@@ -1,0 +1,4 @@
+packages needed to build:
+libxinerama-dev
+libglib2.0-dev
+libcairo2-dev
