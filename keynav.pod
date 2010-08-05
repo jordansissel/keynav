@@ -1,0 +1,354 @@
+=pod
+
+=head1 NAME
+
+keynav - keyboard navigation tool
+
+=head1 SYNOPSIS
+
+B<keynav> [optional-startup-commands]
+
+=head1 DESCRIPTION
+
+B<keynav> is a utility for generally operating your mouse with your keyboard.
+The main usage is to divide the screen into sections, selecting them until you
+end up at the point where you want to move the mouse, or click, etc.
+
+=head1 CONFIGURATION
+
+keynav is configured from a config file in your home directory ".keynavrc"
+
+The default configuration can be found in the L<DEFAULT CONFIGURATION> section.
+
+'#' will delimit comments. The configuration consists mostly of binding keys
+to keynav commands. The following to commands must appear on lines by
+themselves, not as key bindings.
+
+=over
+
+=item B<daemonize>
+
+This will make keynav background itself after parsing the config file and
+setting up keybindings. If there are errors during keybinding, then keynav
+will not background and will exit with failure.
+
+=item B<clear>
+
+This wil clear all existing keybindings. This is useful if, for example, you do
+not want any of the default keybindings that come with keynav.
+
+=back
+
+The rest of the configuration has this format
+ keybinding keynav-command[,keynav-command,...]
+
+You can have multiple commands for a single keybinding.
+
+The way to start keynav's navigation is to use the 'start' command.
+Additionally, any keys with 'start' as a command will be grabbed as global
+hotkeys. For example, this configuration:
+
+ ctrl+semicolon start
+ space click 1
+
+This will make keynav grab the I<ctrl + semicolon> keybinding globally, but it
+will not grab I<space>. The I<space> keybinding will only be active while keynav
+is active (after you press a key sequence that invokes B<start>.
+
+Moving on, here are all the keynav commands you can use:
+
+=head2 CUTS AND MOVES
+
+Movements are bounded by screen edges. See L<SCREEN EDGES> for edge and
+multiple screen handling.
+
+=over
+
+=item B<cut-up> I<[value]>
+
+This will cut the keynav window upwards. We will shrink from the bottom
+upwards. The default cut value, if not specified, is 0.5
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<cut-down> I<[value]>
+
+This will cut the keynav window downwards. We will shrink from the top
+down. The default cut value, if not specified, is 0.5
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<cut-left> I<[value]>
+
+This will cut the keynav window leftwards. We will shrink from the right
+to the left. The default cut value, if not specified, is 0.5
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<cut-right> I<[value]>
+
+This will cut the keynav window rightwards. We will shrink from the left
+to the right. The default cut value, if not specified, is 0.5
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<move-up> I<[value]>
+
+This will move the window up. The default value, if not specified, is 1.
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<move-down> I<[value]>
+
+This will move the window down. The default value, if not specified, is 1.
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<move-left> I<[value]>
+
+This will move the window left. The default value, if not specified, is 1.
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<move-right> I<[value]>
+
+This will move the window right. The default value, if not specified, is 1.
+
+See L<CUT AND MOVE VALUES> for what this value means.
+
+=item B<cursorzoom> I<width> I<height>
+
+This command centers the keynav window on the mouse position and sets the
+window size to the given width and height (in pixels).
+
+=item B<windowzoom>
+
+This command makes the keynav window fit the current application window. This
+is useful if you have your windows in a tiled arrangement.
+
+=head2 GRID COMMANDS
+
+=item B<grid> I<[COLUMNSxROWS]>
+
+The default 'grid' is 2x2. If you want more grid cells you can choose any
+number of columns and rows.
+
+=item B<grid-nav> I<[on OR off]>
+
+Grid navigation is off by default. When turned on, every grid cell will have a
+two-letter label. To select a single cell, you simply type the two letters.
+
+=item B<cell-select> I<[value]>
+
+Cell selection is similar to grid-nav, but less visual. You would bind keys to
+select specific cells. With cell-select, there are no labels.
+
+The value can be one of two formats. First, the COLUMNxROW syntax. 'cell-select
+3x1' will select column 3, row 1. The second format is simply a number. The number
+represents the counting of the cell, starting at the top left and working right.
+
+A visual might help. With 'grid 3x3' the following is used with cell-select:
+
+ +---------------------------------------------------+
+ |                |                |                 |
+ |     1x1        |       2x1      |      3x1        |
+ |      1         |        2       |       3         |
+ |                |                |                 |
+ |----------------|----------------|-----------------|
+ |                |                |                 |
+ |     1x2        |       2x2      |      3x2        |
+ |      4         |        5       |       6         |
+ |                |                |                 |
+ |----------------|----------------|-----------------|
+ |                |                |                 |
+ |     1x3        |       2x3      |      3x3        |
+ |      7         |        8       |       9         |
+ |                |                |                 |
+ |---------------------------------------------------|
+
+=head2 MOUSE COMMANDS
+
+=item B<warp>
+
+This command moves the mouse pointer to the center of the keynav window.
+
+=item B<click> I<[button]>
+
+This command will send a mouse click. It does not move the mouse, so the click
+will go wherever the mouse is positioned. The I<button> values are this: 1 =
+left, 2 = middle, 3 = right, 4 = wheel up, 5 = wheel down.
+
+=item B<doubleclick> I<[button]>
+
+Double clicks, but otherwise is the same as B<click>.
+
+=item B<drag> I<button> I<[modifier-keys]>
+
+Starts or ends dragging, depending on state (dragging or not). The button
+values are the same as for B<click>. The modifier-keys value allows you to
+specify any keys to 'hold' while dragging, such as alt or shift.
+
+Dragging sometimes doesn't work. I'm trying to make it more reliable. File a
+bug if you are interested in this feature working :)
+
+=head2 MISC COMMANDS
+
+=item B<record> I<[file]>
+
+Record actions for replay later. Very similar to vim's 'q' command. The first
+key you press after starting a new recording becomes the active key for that
+recording. You cannot record to keys that are already bound to other commands,
+but you can overwrite existing recordings. If you want to persist recordings
+across keynav processes (like system or keynav restarts, etc) you will want to
+specify a file, I use "~/.keynav_macros" but any path will do.
+
+For example, this config: 'q record'. Pressing 'q' then 'l' will start recording
+to the 'l' key assuming it's not already bound. Then, to stop recording, press
+'q' again (the record key as configured). After that, to replay that recording,
+simply press 'l' while the keynav window is active.
+
+=item B<sh> I<command>
+
+Run a command with /bin/sh -c <command>. This is slightly outside the scope of
+keynav, but executing arbitrary commands is very useful when combined with
+xdotool. For example, I use this to activate Google Chrome and focus the URL
+bar:
+
+ g sh "xdotool search --name -- '- Google Chrome' windowactivate key --window 0 --clearmodifiers ctrl+l",end
+
+=item B<start>
+
+Start keynav. Any keys with this binding will operate as global bindings to activate keynav.
+
+=item B<end>
+
+End keynav. This hides the keynav window and otherwise makes keynav inactive
+until the next 'start' command.
+
+=item B<history-back>
+
+Go backwards in command history. All activity is tracked in history, so if you
+want to undo a movement, etc, simply use this command.
+
+=item B<quit>
+
+Exit keynav. The process will shutdown.
+
+=item B<restart>
+
+Restart keynav. Useful for reloading the configuration. SIGHUP and SIGUSR1 also
+invoke this command.
+
+=back
+
+=head1 CUT AND MOVE VALUES
+
+The values for cuts and moves have two kinds values.
+
+Values in the range [0,1] are taken to mean a percentage of the window's width
+or height. Values > 1 are taken literally as pixel units.
+
+Some examples:
+
+=over
+
+=item B<cut-up> 0.75
+
+This will cut and keep 75% of the window's height. That is, if the window is
+1000 pixels tall, then after this cut it will be 750 pixels tall.
+
+=item B<move-left> 1
+
+The '1' here maeans 100% of the width. This will move the window to the left by
+the full width of the window.
+
+=item B<move-down> 100
+
+The '100' here means 100 pixels. This will move the window down by 100 pixels.
+
+=head1 SCREEN EDGES
+
+When moving the keynav window around, the window will not go outside of the
+screen boundaries. One exception is for multiple displays: a movement outside
+of the current screen can move the keynav window to the next screen if keynav
+things it's the right thing to do.
+
+If a move would take you beyond the screen borders, then the window will stop moving
+at the edge.
+
+=head1 DEFAULT CONFIGURATION
+
+ clear
+ ctrl+semicolon start
+ Escape end
+ ctrl+bracketleft end
+ q record ~/.keynav_macros
+ a history-back
+ h cut-left
+ j cut-down
+ k cut-up
+ l cut-right
+ shift+h move-left
+ shift+j move-down
+ shift+k move-up
+ shift+l move-right
+ space warp,click 1,end
+ semicolon warp,end
+ w warp
+ t windowzoom
+ c cursorzoom 300 300
+ e end
+ 1 click 1
+ 2 click 2
+ 3 click 3
+ ctrl+h cut-left
+ ctrl+j cut-down
+ ctrl+k cut-up
+ ctrl+l cut-right
+ y cut-left,cut-up
+ u cut-right,cut-up
+ b cut-left,cut-down
+ n cut-right,cut-down
+ shift+y move-left,move-up
+ shift+u move-right,move-up
+ shift+b move-left,move-down
+ shift+n move-right,move-down
+ ctrl+y cut-left,cut-up
+ ctrl+u cut-right,cut-up
+ ctrl+b cut-left,cut-down
+ ctrl+n cut-right,cut-down
+
+=head1 EXAMPLES
+
+ # Make 'v' paste things:
+ v sh "xdotool key shift+Insert",end
+
+
+
+=head1 SEE ALSO
+
+Related: L<xdotool(1)>
+
+Project site: L<http://www.semicomplete.com/projects/keynav>
+
+Google Code: L<http://semicomplete.googlecode.com/>
+
+=head1 CONTACT
+
+Please send questions and comments to keynav-users@googlegroups.com. File
+bugs and feature requests at the following URL:
+
+L<http://code.google.com/p/semicomplete/issues/list>
+
+Alternately, if you really prefer email, feel free to file bugs by emailing the
+list. What works for you :)
+
+=head1 AUTHOR
+
+keynav was written by Jordan Sissel.
+
+This manual page was written originally by INSERT DEBIAN MAINTAINER
+E<lt>...@...<gt> for the Debian project (but may be used by others). It is
+maintained by Jordan Sissel.
+
+=cut

@@ -59,3 +59,5 @@ test-package-build: create-package
 	rm -rf $${NAME}/
 	rm -f $${NAME}.tar.gz
 
+keynav.1: keynav.pod
+	pod2man -c "" -r "" $< > $@
