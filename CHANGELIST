@@ -1,6 +1,7 @@
 0.2010????.*
   - Added 'restart' command. Makes keynav restart. Useful for reloading the
     config.
+  - keynav will now restart if it receives SIGHUP or SIGUSR1
     
 0.20100623.*
   - No functional changes.
