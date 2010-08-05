@@ -34,6 +34,7 @@
 #endif /* GLOBAL_CONFIG_FILE */
 
 extern char **environ;
+char **g_argv;
 
 #define ISACTIVE (appstate.active)
 #define ISDRAGGING (appstate.dragging)
@@ -146,6 +147,7 @@ void cmd_move_up(char *args);
 void cmd_cursorzoom(char *args);
 void cmd_windowzoom(char *args);
 void cmd_quit(char *args);
+void cmd_restart(char *args);
 void cmd_shell(char *args);
 void cmd_start(char *args);
 void cmd_warp(char *args);
@@ -156,7 +158,7 @@ void correct_overflow();
 void handle_keypress(XKeyEvent *e);
 void handle_commands(char *commands);
 void parse_config();
-void parse_config_line(char *line);
+int parse_config_line(char *line);
 void save_history_point();
 void restore_history_point(int moves_ago);
 void cell_select(int x, int y);
@@ -173,6 +175,8 @@ void viewport_right();
 int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
 int percent_of(int num, char *args, float default_val);
 void sigchld(int sig);
+void sighup(int sig);
+void restart();
 void recordings_save(const char *filename);
 void parse_recordings(const char *filename);
 void openpixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo);
@@ -212,6 +216,7 @@ dispatch_t dispatch[] = {
   "end", cmd_end, 
   "history-back", cmd_history_back,
   "quit", cmd_quit,
+  "restart", cmd_restart,
   "record", cmd_record,
   NULL, NULL,
 };
@@ -230,8 +235,8 @@ int parse_keycode(char *keyseq) {
   char *tok;
   char *last_tok;
   char *dup;
-  int keycode;
-  int keysym;
+  int keycode = 0;
+  int keysym = 0;
 
   strptr = dup = strdup(keyseq);
   //printf("finding keycode for %s\n", keyseq);
@@ -241,11 +246,17 @@ int parse_keycode(char *keyseq) {
   }
 
   keysym = XStringToKeysym(last_tok);
-  if (keysym == NoSymbol)
-    fprintf(stderr, "No keysym found for %s\n", last_tok);
-  keycode = XKeysymToKeycode(dpy, keysym);
-  if (keycode == 0)
-    fprintf(stderr, "Unable to lookup keycode for %s\n", last_tok);
+  if (keysym == NoSymbol) {
+    fprintf(stderr, "No keysym found for '%s' in sequence '%s'\n",
+            last_tok, keyseq);
+    /* At this point, we'll be returning 0 for keycode */
+  } else {
+    /* Valid keysym */
+    keycode = XKeysymToKeycode(dpy, keysym);
+    if (keycode == 0) {
+      fprintf(stderr, "Unable to lookup keycode for %s\n", last_tok);
+    }
+  }
 
   free(dup);
   return keycode;
@@ -370,14 +381,23 @@ void parse_config_file(const char* file) {
   FILE *fp = NULL;
 #define LINEBUF_SIZE 512
   char line[LINEBUF_SIZE];
+  int lineno = 0;
   fp = fopen(file, "r");
-  if (fp == NULL)
+
+  /* Silently ignore file read errors */
+  if (fp == NULL) {
+    //fprintf(stderr, "Error trying to open file for read '%s'\n", file);
+    //perror("Error");
     return;
+  }
   /* fopen succeeded */
   while (fgets(line, LINEBUF_SIZE, fp) != NULL) {
+    lineno++;
     /* Kill the newline */
     *(line + strlen(line) - 1) = '\0';
-    parse_config_line(line);
+    if (parse_config_line(line) != 0) {
+      fprintf(stderr, "Error with config %s:%d: %s\n", file, lineno, line);
+    }
   }
   fclose(fp);
 }
@@ -447,12 +467,14 @@ void defaults() {
   };
   for (i = 0; default_config[i]; i++) {
     tmp = strdup(default_config[i]);
-    parse_config_line(tmp);
+    if (parse_config_line(tmp) != 0) {
+      fprintf(stderr, "Error with default config line %d: %s\n", i + 1, tmp);
+    }
     free(tmp);
   }
 }
 
-void parse_config_line(char *line) {
+int parse_config_line(char *orig_line) {
   /* syntax:
    * keysequence cmd1,cmd2,cmd3
    *
@@ -462,6 +484,7 @@ void parse_config_line(char *line) {
    * semicolon warp,click
    */
 
+  char *line = strdup(orig_line);
   char *tokctx;
   char *keyseq;
   char *commands;
@@ -480,7 +503,7 @@ void parse_config_line(char *line) {
 
   /* Ignore empty lines */
   if (*line == '\n' || *line == '\0')
-    return;
+    return 0;
 
   tokctx = line;
   keyseq = strdup(strtok_r(line, " ", &tokctx));
@@ -495,6 +518,10 @@ void parse_config_line(char *line) {
     daemonize = 1;
   } else {
     keycode = parse_keycode(keyseq);
+    if (keycode == 0) {
+      fprintf(stderr, "Problem parsing keysequence '%s'\n", keyseq);
+      return 1;
+    }
     mods = parse_mods(keyseq);
 
     addbinding(keycode, mods, commands);
@@ -502,6 +529,8 @@ void parse_config_line(char *line) {
 
   free(keyseq);
   free(commands);
+  free(line);
+  return 0;
 }
 
 int percent_of(int num, char *args, float default_val) {
@@ -513,6 +542,7 @@ int percent_of(int num, char *args, float default_val) {
   if (sscanf(args, "%f", &pct) <= 0)
     pct = default_val;
 
+  /* > 1, then it's not a percent, it's an absolute value. */
   if (pct > 1.0)
     return (int)pct;
 
@@ -878,6 +908,10 @@ void cmd_quit(char *args) {
   exit(0);
 }
 
+void cmd_restart(char *args) {
+  restart();
+}
+
 void cmd_cut_up(char *args) {
   if (!ISACTIVE)
     return;
@@ -937,7 +971,15 @@ void cmd_cursorzoom(char *args) {
   if (!ISACTIVE)
     return;
 
-  sscanf(args, "%d %d", &width, &height);
+  int count = sscanf(args, "%d %d", &width, &height);
+  if (count == 0) {
+    fprintf(stderr,
+            "Invalid usage of 'cursorzoom' (expected at least 1 argument)\n");
+  } else if (count == 1) {
+    /* If only one argument, assume we want a square. */
+    height = width;
+  }
+
   xdo_mouselocation(xdo, &xloc, &yloc, NULL);
 
   wininfo.x = xloc - (width / 2);
@@ -967,8 +1009,21 @@ void cmd_windowzoom(char *args) {
 void cmd_warp(char *args) {
   if (!ISACTIVE)
     return;
-  xdo_mousemove(xdo, wininfo.x + wininfo.w / 2, wininfo.y + wininfo.h / 2,
-                viewports[wininfo.curviewport].screen_num);
+  int x, y;
+  x = wininfo.x + wininfo.w / 2;
+  y = wininfo.y + wininfo.h / 2;
+  
+  if (mouseinfo.x != -1 && mouseinfo.y != -1) {
+    closepixel(dpy, zone, &mouseinfo);
+  }
+  mouseinfo.x = x;
+  mouseinfo.y = y;
+  openpixel(dpy, zone, &mouseinfo);
+
+  xdo_mousemove(xdo, x, y, viewports[wininfo.curviewport].screen_num);
+  xdo_mouse_wait_for_move_to(xdo, x, y);
+
+  openpixel(dpy, zone, &mouseinfo);
 }
 
 void cmd_click(char *args) {
@@ -1018,6 +1073,7 @@ void cmd_drag(char *args) {
     appstate.dragging = False;
     xdo_mouseup(xdo, CURRENTWINDOW, button);
   } else { /* Start dragging */
+    cmd_warp(NULL);
     appstate.dragging = True;
     xdo_keysequence_down(xdo, 0, drag_modkeys, 12000);
     xdo_mousedown(xdo, CURRENTWINDOW, button);
@@ -1026,6 +1082,7 @@ void cmd_drag(char *args) {
     /* TODO(sissel): Make this a 'mousewiggle' command */
     xdo_mousemove_relative(xdo, 1, 0);
     xdo_mousemove_relative(xdo, -1, 0);
+    XSync(xdo->xdpy, 0);
     xdo_keysequence_up(xdo, 0, drag_modkeys, 12000);
   }
 }
@@ -1467,9 +1524,6 @@ void handle_commands(char *commands) {
         found = 1;
         dispatch[i].func(args);
 
-        if (ISDRAGGING)
-          cmd_warp(NULL);
-
         /* Fix keynav window boundaries if they exceed the screen */
         correct_overflow();
       }
@@ -1480,6 +1534,8 @@ void handle_commands(char *commands) {
   }
 
   if (ISACTIVE) {
+    if (ISDRAGGING)
+      cmd_warp(NULL);
     update();
     save_history_point();
   }
@@ -1642,6 +1698,14 @@ void sigchld(int sig) {
   }
 }
 
+void sighup(int sig) {
+  restart();
+}
+
+void restart() {
+  execvp(g_argv[0], g_argv);
+}
+
 void recordings_save(const char *filename) {
   FILE *output = NULL;
   int i = 0;
@@ -1733,6 +1797,8 @@ int main(int argc, char **argv) {
   char *pcDisplay;
   int ret;
 
+  g_argv = argv;
+
   if ((pcDisplay = getenv("DISPLAY")) == NULL) {
     fprintf(stderr, "Error: DISPLAY environment variable not set\n");
     exit(1);
@@ -1751,6 +1817,8 @@ int main(int argc, char **argv) {
   }
 
   signal(SIGCHLD, sigchld);
+  signal(SIGHUP, sighup);
+  signal(SIGUSR1, sighup);
   xdo = xdo_new_with_opened_display(dpy, pcDisplay, False);
 
   parse_config();
@@ -1761,17 +1829,17 @@ int main(int argc, char **argv) {
    * before we try to daemonize */
   XSync(dpy, 0);
 
-  if (daemonize) {
-    printf("Daemonizing now...\n");
-    daemon(0, 0);
-  }
-
   if (argc == 2) {
     handle_commands(argv[1]);
   } else if (argc > 2) {
     fprintf(stderr, "Usage: %s [command string]\n", argv[0]);
     fprintf(stderr, "Did you quote your command string?\n");
     exit(1);
+  }
+
+  if (daemonize) {
+    printf("Daemonizing now...\n");
+    daemon(0, 0);
   }
 
   while (1) {
@@ -1783,11 +1851,12 @@ int main(int argc, char **argv) {
         handle_keypress((XKeyEvent *)&e);
         break;
 
+      /* MapNotify means the keynav window is now visible */
       case MapNotify:
         update();
         break;
 
-      // Map and Configure events mean the window was changed or is now mapped.
+      // Configure events mean the window was changed (size, property, etc)
       case ConfigureNotify:
         update();
         break;

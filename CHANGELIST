@@ -1,3 +1,7 @@
+0.2010????.*
+  - Added 'restart' command. Makes keynav restart. Useful for reloading the
+    config.
+    
 0.20100623.*
   - No functional changes.
   - Remove monolithic build against libxdo. xdotool is now available in just
