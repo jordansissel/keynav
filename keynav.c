@@ -1016,13 +1016,17 @@ void cmd_warp(char *args) {
   if (mouseinfo.x != -1 && mouseinfo.y != -1) {
     closepixel(dpy, zone, &mouseinfo);
   }
-  mouseinfo.x = x;
-  mouseinfo.y = y;
+
+  /* Open pixels hould be relative to the window coordinates,
+   * not screen coordinates. */
+  mouseinfo.x = x - wininfo.x;
+  mouseinfo.y = y - wininfo.y;
   openpixel(dpy, zone, &mouseinfo);
 
   xdo_mousemove(xdo, x, y, viewports[wininfo.curviewport].screen_num);
   xdo_mouse_wait_for_move_to(xdo, x, y);
 
+  /* TODO(sissel): do we need to open again? */
   openpixel(dpy, zone, &mouseinfo);
 }
 
