@@ -2,6 +2,9 @@
   - Added 'restart' command. Makes keynav restart. Useful for binding a key to
     reload the config.
   - keynav will now restart if it receives SIGHUP or SIGUSR1
+  @ Map 'Enter' by default to 'warp,click 1,end' (requested by Axel Beckert)
+  @ Allow keynav to take a config file to load on the command line. (requested
+    by Axel Beckert)
     
 0.20100623.*
   - No functional changes.
