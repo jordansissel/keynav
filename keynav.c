@@ -507,7 +507,6 @@ int parse_config_line(char *orig_line) {
 
   tokctx = line;
   keyseq = strdup(strtok_r(line, " ", &tokctx));
-  commands = strdup(tokctx);
 
   /* A special config option that will clear all keybindings */
   if (strcmp(keyseq, "clear") == 0) {
