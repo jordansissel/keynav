@@ -97,6 +97,7 @@ static viewport_t *viewports;
 static int nviewports = 0;
 static int xinerama = 0;
 static int daemonize = 0;
+static int is_daemon = False;
 
 static Display *dpy;
 static Window zone;
@@ -128,30 +129,33 @@ static wininfo_t wininfo_history[WININFO_MAXHIST]; /* XXX: is 100 enough? */
 static int wininfo_history_cursor = 0;
 
 void defaults();
+
 void cmd_cell_select(char *args);
 void cmd_click(char *args);
+void cmd_cursorzoom(char *args);
 void cmd_cut_down(char *args);
 void cmd_cut_left(char *args);
 void cmd_cut_right(char *args);
 void cmd_cut_up(char *args);
+void cmd_daemonize(char *args);
 void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
 void cmd_end(char *args);
 void cmd_grid(char *args);
 void cmd_grid_nav(char *args);
 void cmd_history_back(char *args);
+void cmd_loadconfig(char *args);
 void cmd_move_down(char *args);
 void cmd_move_left(char *args);
 void cmd_move_right(char *args);
 void cmd_move_up(char *args);
-void cmd_cursorzoom(char *args);
-void cmd_windowzoom(char *args);
 void cmd_quit(char *args);
+void cmd_record(char *args);
 void cmd_restart(char *args);
 void cmd_shell(char *args);
 void cmd_start(char *args);
 void cmd_warp(char *args);
-void cmd_record(char *args);
+void cmd_windowzoom(char *args);
 
 void update();
 void correct_overflow();
@@ -211,6 +215,8 @@ dispatch_t dispatch[] = {
   "drag", cmd_drag,
 
   // Other commands.
+  "loadconfig", cmd_loadconfig,
+  "daemonize", cmd_daemonize,
   "sh", cmd_shell,
   "start", cmd_start,
   "end", cmd_end, 
@@ -382,6 +388,26 @@ void parse_config_file(const char* file) {
 #define LINEBUF_SIZE 512
   char line[LINEBUF_SIZE];
   int lineno = 0;
+
+  if (file[0] == '~') {
+    const char *homedir = getenv("HOME");
+
+    if (homedir != NULL) {
+      char *rcfile = NULL;
+      asprintf(&rcfile, "%s/%s", homedir, file + 1 /* skip first char '~' */);
+      parse_config_file(rcfile);
+      free(rcfile);
+      return;
+    } else {
+      fprintf(stderr, 
+              "No HOME set in environment. Can't expand '%s' (fatal error)\n",
+              file);
+      /* This is fatal. */
+      exit(1);
+    }
+  } /* if file[0] == '~' */
+  printf("File: %s\n", file);
+
   fp = fopen(file, "r");
 
   /* Silently ignore file read errors */
@@ -410,14 +436,7 @@ void parse_config() {
 
   defaults();
   parse_config_file(GLOBAL_CONFIG_FILE);
-  homedir = getenv("HOME");
-
-  if (homedir != NULL) {
-    char *rcfile = NULL;
-    asprintf(&rcfile, "%s/.keynavrc", homedir);
-    parse_config_file(rcfile);
-    free(rcfile);
-  }
+  parse_config_file("~/.keynavrc");
 }
 
 void defaults() {
@@ -886,6 +905,16 @@ void cmd_history_back(char *args) {
   restore_history_point(1);
 }
 
+void cmd_loadconfig(char *args) {
+  // Trim leading and trailing quotes if they exist
+  if (*args == '"') {
+    args++;
+    *(args + strlen(args) - 1) = '\0';
+  }
+
+  parse_config_file(args);
+}
+
 void cmd_shell(char *args) {
   // Trim leading and trailing quotes if they exist
   if (*args == '"') {
@@ -1183,6 +1212,13 @@ void cell_select(int col, int row) {
   wininfo.h = wininfo.h / wininfo.grid_rows;
   wininfo.x = wininfo.x + (wininfo.w * (col));
   wininfo.y = wininfo.y + (wininfo.h * (row));
+}
+
+void cmd_daemonize(char *args) {
+  if (!is_daemon) {
+    daemon(0, 0);
+    is_daemon = True;
+  }
 }
 
 void cmd_record(char *args) {
@@ -1844,7 +1880,7 @@ int main(int argc, char **argv) {
 
   if (daemonize) {
     printf("Daemonizing now...\n");
-    daemon(0, 0);
+    cmd_daemonize(NULL);
   }
 
   while (1) {
@@ -1898,3 +1934,4 @@ int main(int argc, char **argv) {
 
   xdo_free(xdo);
 } /* int main */
+
