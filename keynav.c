@@ -439,6 +439,7 @@ void defaults() {
     "shift+k move-up",
     "shift+l move-right",
     "space warp,click 1,end",
+    "Return warp,click 1,end",
     "semicolon warp,end",
     "w warp",
     "t windowzoom",
