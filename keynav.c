@@ -1246,6 +1246,7 @@ void update() {
   if (!ISACTIVE)
     return;
 
+  /* Fix keynav window boundaries if they exceed the screen */
   correct_overflow();
   if (wininfo.w <= 1 || wininfo.h <= 1) {
     cmd_end(NULL);
@@ -1566,8 +1567,6 @@ void handle_commands(char *commands) {
         found = 1;
         dispatch[i].func(args);
 
-        /* Fix keynav window boundaries if they exceed the screen */
-        correct_overflow();
       }
     }
 
