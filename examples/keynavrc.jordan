@@ -1,0 +1,119 @@
+# This is a keynavrc file. Yours should live in 
+# $HOME/.keynavrc
+#
+# Lines beginning with '#' are comments.
+# Format is:
+#   keysequence cmd1,cmd2,cmd3...
+# 
+# The 'start' command alone is handled specially, in that any key sequence
+# mapped to 'start' will be grabbed when keynav starts up so you can invoke it
+# to activate keynav. The remaining keys are only recognized while keynav is
+# active
+#
+# Project page; http://www.semicomplete.com/projects/keynav
+
+daemonize
+clear
+
+q record ~/.keynav_macros
+#ctrl+semicolon start, sh "exec transset-df -i $(xdotool search --class keynav) 0.3"
+e grid-nav toggle
+Tab quit
+ctrl+semicolon start
+#ctrl+semicolon start,cut-left .95, cut-up .95, move-right 50, move-down 20
+alt+semicolon start,move-right
+Escape end
+ctrl+bracketleft end
+h cut-left
+j cut-down
+k cut-up
+l cut-right
+y cut-left,cut-up
+u cut-right,cut-up
+b cut-left,cut-down
+n cut-right,cut-down
+shift+h move-left
+shift+j move-down
+shift+k move-up
+shift+l move-right
+shift+y move-left,move-up
+shift+u move-right,move-up
+shift+b move-left,move-down
+shift+n move-right,move-down
+space warp,click 1,end
+semicolon warp,end
+1 click 1
+2 click 2
+3 click 3
+#1 cell-select 1x1,warp,end
+#2 cell-select 1x2,warp,end
+#3 cell-select 2x1,warp,end
+#4 cell-select 2x2,warp,end
+
+# Zoom to the current window
+w windowzoom
+c cursorzoom 100 100
+#ctrl+w windowzoom
+
+# Handy for holding ctrl while using keynav:
+ctrl+h cut-left
+ctrl+j cut-down
+ctrl+k cut-up
+ctrl+l cut-right
+ctrl+y cut-left,cut-up
+ctrl+u cut-right,cut-up
+ctrl+b cut-left,cut-down
+ctrl+n cut-right,cut-down
+
+### Example using the 'sh' command.
+# This xdotool invocation require xdotool >= 2.20100623 for 'command chaining'
+g sh "xdotool search --title -- '- Google Chrome' windowactivate key --window 0 --clearmodifiers ctrl+l",end
+
+# Paste!
+v sh "xdotool key shift+Insert",end
+ctrl+v sh "xdotool key shift+Insert",end
+
+# Activate chrome, make a new tab, paste in the url bar, then press return.
+# This xdotool invocation require xdotool >= 2.20100623 for 'command chaining'
+t sh "xdotool search --title -- '- Google Chrome' windowactivate --sync key --window 0 --clearmodifiers ctrl+t shift+Insert Return",end
+
+### Drag examples
+# Start drag holding the left mouse button
+#q drag 1
+# Start drag holding middle mouse + control and shift
+#w warp
+
+### History
+a history-back
+
+### Example of cut and move without the default values
+#h cut-left .75
+#j cut-down .75
+#k cut-up .75
+#l cut-right .75
+#shift+h move-left .50
+#shift+j move-down .50
+#shift+k move-up .50
+#shift+l move-right .50
+
+### Example using a 2-row, 3-column grid, 
+# mapped to Insert/Home/PageUp/etc...
+#6 grid 2x3
+#Insert cell-select 1x1
+#Home cell-select 1x2
+#Prior cell-select 1x3   # PageUp
+#Delete cell-select 2x1
+#End cell-select 2x2
+#Next cell-select 2x3   # PageDown
+
+### Example using a 3x3 grid with nethack-vi keys
+#ctrl+semicolon start, grid 3x3
+#h cell-select 2x1      # left
+#j cell-select 3x2      # down
+#k cell-select 1x2      # up
+#l cell-select 2x3      # right
+#y cell-select 1x1      # up-left
+#u cell-select 1x3      # up-right
+#b cell-select 3x1      # down-left
+#n cell-select 3x3      # down-right
+#period cell-select 2x2 # center
