@@ -14,6 +14,16 @@ B<keynav> is a utility for generally operating your mouse with your keyboard.
 The main usage is to divide the screen into sections, selecting them until you
 end up at the point where you want to move the mouse, or click, etc.
 
+You can pass any valid keynav commands to keynav from the command-line. Make
+sure you quote things properly.
+
+For example, to load another config file or two:
+
+ keynav "loadconfig ~/myconfigs/keynavrc,loadconfig ~/myconfig/anotherkeynavrc"
+
+To daemonize on startup:
+ keynav daemonize
+
 =head1 CONFIGURATION
 
 keynav is configured from a config file in your home directory ".keynavrc"
@@ -215,6 +225,11 @@ xdotool. For example, I use this to activate Google Chrome and focus the URL
 bar:
 
  g sh "xdotool search --name -- '- Google Chrome' windowactivate key --window 0 --clearmodifiers ctrl+l",end
+
+=item B<loadconfig> I<path>
+
+Load an additional config file. Paths like '~/foo/bar' are valid and the '~'
+will be replaced with your home directory (Value of $HOME in environment).
 
 =item B<start>
 

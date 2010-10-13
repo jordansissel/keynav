@@ -406,7 +406,6 @@ void parse_config_file(const char* file) {
       exit(1);
     }
   } /* if file[0] == '~' */
-  printf("File: %s\n", file);
 
   fp = fopen(file, "r");
 
@@ -531,11 +530,14 @@ int parse_config_line(char *orig_line) {
 
   /* A special config option that will clear all keybindings */
   if (strcmp(keyseq, "clear") == 0) {
+    /* TODO(sissel): Make this a cmd_clear function */
     /* Reset keybindings */
     g_ptr_array_free(keybindings, TRUE);
     keybindings = g_ptr_array_new();
   } else if (strcmp(keyseq, "daemonize") == 0) {
-    daemonize = 1;
+    handle_commands(keyseq);
+  } else if (strcmp(keyseq, "loadconfig") == 0) {
+    handle_commands(keyseq);
   } else {
     keycode = parse_keycode(keyseq);
     if (keycode == 0) {
@@ -1216,8 +1218,7 @@ void cell_select(int col, int row) {
 
 void cmd_daemonize(char *args) {
   if (!is_daemon) {
-    daemon(0, 0);
-    is_daemon = True;
+    daemonize = 1;
   }
 }
 
@@ -1837,24 +1838,25 @@ void closepixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo) {
 int main(int argc, char **argv) {
   char *pcDisplay;
   int ret;
+  const char *prog = argv[0];
 
   g_argv = argv;
 
   if ((pcDisplay = getenv("DISPLAY")) == NULL) {
     fprintf(stderr, "Error: DISPLAY environment variable not set\n");
-    exit(1);
+    return EXIT_SUCCESS;
   }
 
   if ((dpy = XOpenDisplay(pcDisplay)) == NULL) {
     fprintf(stderr, "Error: Can't open display: %s\n", pcDisplay);
-    exit(1);
+    return EXIT_SUCCESS;
   }
 
   if (argc > 1 && (!strcmp(argv[1], "version") 
                    || !strcmp(argv[1], "-v") 
                    || !strcmp(argv[1], "--version"))) {
     printf("keynav %s\n", KEYNAV_VERSION);
-    return 0;
+    return EXIT_SUCCESS;
   }
 
   signal(SIGCHLD, sigchld);
@@ -1865,22 +1867,24 @@ int main(int argc, char **argv) {
   parse_config();
   query_screens();
 
+  if (argc == 2) {
+    handle_commands(argv[1]);
+  } else if (argc > 2) {
+    fprintf(stderr, "Usage: %s [command string]\n", prog);
+    fprintf(stderr, "Did you quote your command string?\n");
+    fprintf(stderr, "  Example: %s 'loadconfig mykeynavrc,daemonize'\n", prog);
+    return EXIT_FAILURE;
+  }
+
   /* Sync with the X server.
    * This ensure we errors about XGrabKey and other failures
    * before we try to daemonize */
   XSync(dpy, 0);
 
-  if (argc == 2) {
-    handle_commands(argv[1]);
-  } else if (argc > 2) {
-    fprintf(stderr, "Usage: %s [command string]\n", argv[0]);
-    fprintf(stderr, "Did you quote your command string?\n");
-    exit(1);
-  }
-
   if (daemonize) {
     printf("Daemonizing now...\n");
-    cmd_daemonize(NULL);
+    daemon(0, 0);
+    is_daemon = True;
   }
 
   while (1) {
