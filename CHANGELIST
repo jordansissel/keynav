@@ -1,9 +1,11 @@
 0.20101014.*
   - Added 'restart' command. Makes keynav restart. Useful for binding a key to
     reload the config.
+  - Added 'loadconfig' command. This lets you include additional config files
+    to load on the command line or in one of the default keynavrc files.
+    (requested by Axel Beckert)
   - keynav will now restart if it receives SIGHUP or SIGUSR1
   - Map 'Enter' by default to 'warp,click 1,end' (requested by Axel Beckert)
-  - Allow keynav to take a config file to load on the command line. (requested
     by Axel Beckert)
   - Fix a bug causing the point under the mouse cursor to not click through the 
     keynav window in certain conditions. Reported via mailing list by Eric Van
