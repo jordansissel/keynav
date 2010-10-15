@@ -12,13 +12,13 @@
 #
 # Project page; http://www.semicomplete.com/projects/keynav
 
-daemonize
-clear
+daemonize  # background keynav
+clear      # clear all previous keybindings
 
 q record ~/.keynav_macros
 #ctrl+semicolon start, sh "exec transset-df -i $(xdotool search --class keynav) 0.3"
 e grid-nav toggle
-Tab quit
+Tab restart
 ctrl+semicolon start
 #ctrl+semicolon start,cut-left .95, cut-up .95, move-right 50, move-down 20
 alt+semicolon start,move-right
