@@ -1,4 +1,4 @@
-0.201010??.*
+0.20101014.*
   - Added 'restart' command. Makes keynav restart. Useful for binding a key to
     reload the config.
   - keynav will now restart if it receives SIGHUP or SIGUSR1
