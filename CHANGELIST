@@ -1,3 +1,7 @@
+0.20101224.*
+  - Fix a bug in how I use strtok_r that causes crashes in FreeBSD.
+    Reported by Richard Kolkovich.
+
 0.20101014.*
   - Added 'restart' command. Makes keynav restart. Useful for binding a key to
     reload the config.
