@@ -9,9 +9,9 @@ OTHERFILES=README CHANGELIST COPYRIGHT \
 
 VERSION=$(shell sh version.sh)
 
+#CFLAGS+=-pg -g
+#LDFLAGS+=-pg -g
 #LDFLAGS+=-L/usr/lib/debug/usr/lib/ -lcairo -lX11 -lXinerama -LXtst -lXext
-CFLAGS+=-pg -g
-LDFLAGS+=-pg -g
 #CFLAGS+=-O2
 
 #CFLAGS+=-DPROFILE_THINGS
