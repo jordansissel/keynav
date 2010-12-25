@@ -506,7 +506,6 @@ int parse_config_line(char *orig_line) {
   char *line = strdup(orig_line);
   char *tokctx;
   char *keyseq;
-  char *commands;
   int keycode, mods;
 
   char *comment;
@@ -526,7 +525,6 @@ int parse_config_line(char *orig_line) {
 
   tokctx = line;
   keyseq = strdup(strtok_r(line, " ", &tokctx));
-  commands = strdup(tokctx);
 
   /* A special config option that will clear all keybindings */
   if (strcmp(keyseq, "clear") == 0) {
@@ -546,11 +544,18 @@ int parse_config_line(char *orig_line) {
     }
     mods = parse_mods(keyseq);
 
-    addbinding(keycode, mods, commands);
+    /* FreeBSD sets 'tokctx' to NULL at end of string.
+     * glibc sets 'tokctx' to the next character (the '\0') 
+     * Reported by Richard Kolkovich */
+    if (tokctx == NULL || *tokctx == '\0') {
+      fprintf(stderr, "Incomplete configuration line. Missing commands: '%s'\n", line);
+      return 1;
+    }
+
+    addbinding(keycode, mods, tokctx /* the remainder of the line */);
   }
 
   free(keyseq);
-  free(commands);
   free(line);
   return 0;
 }
