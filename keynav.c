@@ -718,17 +718,17 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
 
   char label[3] = "AA";
 
-  int col_selected = 0;
+  int row_selected = 0;
   for (col = 0; col < info->grid_cols; col++) {
     label[0] = 'A';
-    col_selected = (appstate.grid_nav && appstate.grid_nav_col == col 
-                    && appstate.grid_nav_state == GRID_NAV_ROW);
-
     for (row = 0; row < info->grid_rows; row++) {
       int rectwidth = te.width + 25;
       int rectheight = te.height + 8;
       int xpos = cell_width * col + x_off + (cell_width / 2);
       int ypos = cell_height * row + y_off + (cell_height / 2);
+
+      row_selected = (appstate.grid_nav && appstate.grid_nav_row == row 
+                      && appstate.grid_nav_state == GRID_NAV_COL);
       //printf("Grid: %c%c\n", label[0], label[1]);
 
       /* If the current column is the one selected by grid nav, use
@@ -746,7 +746,7 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
         pathcopy = cairo_copy_path(canvas_cairo);
         cairo_set_line_width(shape_cairo, 2);
 
-        if (col_selected) {
+        if (row_selected) {
           cairo_set_source_rgb(canvas_cairo, 0, .3, .3);
         } else {
           cairo_set_source_rgb(canvas_cairo, 0, .2, 0);
@@ -757,7 +757,7 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
         cairo_stroke(canvas_cairo);
         cairo_path_destroy(pathcopy);
 
-        if (col_selected) {
+        if (row_selected) {
           cairo_set_source_rgb(canvas_cairo, 1, 1, 1);
         } else {
           cairo_set_source_rgb(canvas_cairo, .8, .8, .8);
@@ -1147,7 +1147,7 @@ void cmd_grid_nav(char *args) {
     appstate.grid_nav = 0;
   } else {
     appstate.grid_nav = 1;
-    appstate.grid_nav_state = GRID_NAV_COL;
+    appstate.grid_nav_state = GRID_NAV_ROW;
   }
 
   appstate.need_draw = 1;
@@ -1510,19 +1510,22 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
     appstate.need_draw = 1;
     update();
     save_history_point();
+
+    /* We have a full set of coordinates now; select that grid position */
+    cell_select(appstate.grid_nav_col, appstate.grid_nav_row);
+    update();
+    save_history_point();
+    appstate.grid_nav_row = -1;
+    appstate.grid_nav_col = -1;
   } else if (appstate.grid_nav_state == GRID_NAV_ROW) {
     if (val >= wininfo.grid_rows) {
       return HANDLE_CONTINUE; /* Invalid key in this grid, pass */
     }
     appstate.grid_nav_row = val;
-
-    /* We have a full set of coordinates now; select that grid position */
-    cell_select(appstate.grid_nav_col, appstate.grid_nav_row);
     appstate.grid_nav_state = GRID_NAV_COL;
+    appstate.need_draw = 1;
     update();
     save_history_point();
-    appstate.grid_nav_row = -1;
-    appstate.grid_nav_col = -1;
   }
   return HANDLE_STOP;
 }
