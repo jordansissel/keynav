@@ -1,3 +1,6 @@
+???????????
+  @ TODO/BUG: windowzoom causes a crash in wmii (Reported by Krister Svanlund)
+
 0.20101224.*
   - Fix a bug in how I use strtok_r that causes crashes in FreeBSD.
     Reported by Richard Kolkovich.
