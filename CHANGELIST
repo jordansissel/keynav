@@ -1,5 +1,7 @@
 ???????????
   @ TODO/BUG: windowzoom causes a crash in wmii (Reported by Krister Svanlund)
+  - Fix bug in grid-nav where the column was selected first, when the first
+    letter is that of the row.
 
 0.20101224.*
   - Fix a bug in how I use strtok_r that causes crashes in FreeBSD.
