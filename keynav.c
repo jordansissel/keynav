@@ -1311,8 +1311,8 @@ void update() {
 
 
   if (resize && move) {
-    printf("=> %ld: %dx%d @ %d,%d\n", zone, wininfo.w, wininfo.h, wininfo.x,
-           wininfo.y);
+    //printf("=> %ld: %dx%d @ %d,%d\n", zone, wininfo.w, wininfo.h, wininfo.x,
+           //wininfo.y);
     XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
 
     /* Under Gnome3/GnomeShell, it seems to ignore this move+resize request
