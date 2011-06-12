@@ -1309,8 +1309,16 @@ void update() {
     }
   }
 
+
   if (resize && move) {
+    printf("=> %ld: %dx%d @ %d,%d\n", zone, wininfo.w, wininfo.h, wininfo.x,
+           wininfo.y);
     XMoveResizeWindow(dpy, zone, wininfo.x, wininfo.y, wininfo.w, wininfo.h);
+
+    /* Under Gnome3/GnomeShell, it seems to ignore this move+resize request
+     * unless we sync and sleep here. Sigh. Gnome is retarded. */
+    XSync(dpy, 0);
+    usleep(5000);
   } else if (resize) {
     XResizeWindow(dpy, zone, wininfo.w, wininfo.h);
   } else if (move) {
@@ -1462,8 +1470,8 @@ handler_info_t handle_recording(XKeyEvent *e) {
     if (rec->keycode == e->keycode) {
       g_ptr_array_free(rec->commands, TRUE);
       g_ptr_array_remove_index_fast(recordings, i);
-      i--; /* array removal will shift everything down one to make up for the loss 
-              we'll need to redo this index */
+      i--; /* array removal will shift everything down one to make up for the
+            * loss we'll need to redo this index */
     }
   }
 
