@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -174,6 +175,8 @@ void query_screen_xinerama();
 void query_screen_normal();
 int viewport_sort(const void *a, const void *b);
 int query_current_screen();
+int query_current_screen_xinerama();
+int query_current_screen_normal();
 void viewport_left();
 void viewport_right();
 int pointinrect(int px, int py, int rx, int ry, int rw, int rh);
@@ -1029,7 +1032,8 @@ void cmd_windowzoom(char *args) {
   Window curwin;
   Window rootwin;
   Window dummy_win;
-  int x, y, width, height, border_width, depth;
+  int x, y;
+  unsigned int width, height, border_width, depth;
 
   xdo_window_get_active(xdo, &curwin);
   XGetGeometry(xdo->xdpy, curwin, &rootwin, &x, &y, &width, &height,
@@ -1317,8 +1321,8 @@ void update() {
 
     /* Under Gnome3/GnomeShell, it seems to ignore this move+resize request
      * unless we sync and sleep here. Sigh. Gnome is retarded. */
-    XSync(dpy, 0);
-    usleep(5000);
+    //XSync(dpy, 0);
+    //usleep(5000);
   } else if (resize) {
     XResizeWindow(dpy, zone, wininfo.w, wininfo.h);
   } else if (move) {
@@ -1477,7 +1481,7 @@ handler_info_t handle_recording(XKeyEvent *e) {
 
   //printf("Recording as keycode:%d\n", e->keycode);
   active_recording->keycode = e->keycode;
-  return;
+  return HANDLE_CONTINUE;
 }
 
 handler_info_t handle_gridnav(XKeyEvent *e) {
