@@ -1,5 +1,5 @@
-???????????
-  @ TODO/BUG: windowzoom causes a crash in wmii (Reported by Krister Svanlund)
+0.20110708.*
+  - patch from wxs to clean up errors when building with clang.
   - Fix bug in grid-nav where the column was selected first, when the first
     letter is that of the row.
 
