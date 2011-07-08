@@ -22,7 +22,7 @@ VERSION=$(shell sh version.sh)
 all: keynav
 
 clean:
-	rm *.o keynav keynav-version.h || true;
+	rm *.o keynav keynav_version.h || true;
 
 keynav.o: keynav_version.h
 keynav_version.h: version.sh
