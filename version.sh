@@ -7,8 +7,7 @@ fi
 if [ -z "$MAJOR" -o -z "$RELEASE" -o -z "$REVISION" ] ; then
   MAJOR="0"
   RELEASE="$(date +%Y%m%d)"
-  REVISION=$([ -d .svn ] && svn info . | awk '/Revision:/ {print $2}')
-  : ${REVISION=:0}
+  REVISION=0
 fi
 
 VERSION="$MAJOR.$RELEASE.$REVISION"
