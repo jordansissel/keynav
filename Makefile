@@ -27,6 +27,7 @@ clean:
 keynav.o: keynav_version.h
 keynav_version.h: version.sh
 
+keynav: LDFLAGS+=-Xlinker -rpath=/usr/local/lib
 keynav: keynav.o
 	$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
 
