@@ -46,6 +46,7 @@ struct appstate {
   int need_draw;
   int need_moveresize;
   enum { record_getkey, record_ing, record_off } recording;
+  int playback;
 
   int grid_nav; /* 1 if grid nav is active */
   enum { GRID_NAV_COL, GRID_NAV_ROW } grid_nav_state;
@@ -152,6 +153,7 @@ void cmd_move_right(char *args);
 void cmd_move_up(char *args);
 void cmd_quit(char *args);
 void cmd_record(char *args);
+void cmd_playback(char *args);
 void cmd_restart(char *args);
 void cmd_shell(char *args);
 void cmd_start(char *args);
@@ -227,6 +229,7 @@ dispatch_t dispatch[] = {
   "quit", cmd_quit,
   "restart", cmd_restart,
   "record", cmd_record,
+  "playback", cmd_playback,
   NULL, NULL,
 };
 
@@ -450,6 +453,7 @@ void defaults() {
     "Escape end",
     "ctrl+bracketleft end", /* for vi people who use ^[ */
     "q record ~/.keynav_macros",
+    "shift+at playback",
     "a history-back",
     "h cut-left",
     "j cut-down",
@@ -1231,6 +1235,10 @@ void cmd_daemonize(char *args) {
   }
 }
 
+void cmd_playback(char *args) {
+  appstate.playback = 1;
+}
+
 void cmd_record(char *args) {
   char *filename;
   if (!ISACTIVE)
@@ -1414,7 +1422,6 @@ void viewport_left() {
 
 void handle_keypress(XKeyEvent *e) {
   int i;
-  int key_found = 0;
   /* If a mouse button is pressed (like, when we're dragging),
    * then the 'mods' will include values like Button1Mask. 
    * Let's remove those, as they cause breakage */
@@ -1427,6 +1434,22 @@ void handle_keypress(XKeyEvent *e) {
     if (handle_recording(e) == HANDLE_STOP) {
       return;
     }
+  }
+
+  if (appstate.playback) {
+    /* Loop over known recordings */
+    for (i = 0; i < recordings->len; i++) {
+      recording_t *rec = g_ptr_array_index(recordings, i);
+      if (e->keycode == rec->keycode) {
+        int j = 0;
+        for (j = 0; j < rec->commands->len; j++) {
+          handle_commands(g_ptr_array_index(rec->commands, j));
+        }
+        break;
+      }
+    }
+    appstate.playback = 0;
+    return;
   }
 
   if (appstate.grid_nav) {
@@ -1443,22 +1466,6 @@ void handle_keypress(XKeyEvent *e) {
     char *commands = kbt->commands;
     if ((keycode == e->keycode) && (mods == e->state)) {
       handle_commands(commands);
-      key_found = 1;
-    }
-  }
-
-  /* Break now if this is a normal command */
-  if (key_found)
-    return;
-
-  /* Loop over known recordings */
-  for (i = 0; i < recordings->len; i++) {
-    recording_t *rec = g_ptr_array_index(recordings, i);
-    if (e->keycode == rec->keycode) {
-      int j = 0;
-      for (j = 0; j < rec->commands->len; j++) {
-        handle_commands(g_ptr_array_index(rec->commands, j));
-      }
     }
   }
 } /* void handle_keypress */
