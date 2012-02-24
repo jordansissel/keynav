@@ -234,7 +234,12 @@ specify a file, I use "~/.keynav_macros" but any path will do.
 For example, this config: 'q record'. Pressing 'q' then 'l' will start recording
 to the 'l' key assuming it's not already bound. Then, to stop recording, press
 'q' again (the record key as configured). After that, to replay that recording,
-simply press 'l' while the keynav window is active.
+simply press B<playback> and then 'l' while the keynav window is active.
+
+=item B<playback>
+
+Replay a previously recorded sequence of keys. After invoking the command,
+keynav will wait for the key of a previously recorded session.
 
 =item B<sh> I<command>
 
@@ -319,6 +324,7 @@ The '100' here means 100 pixels. This will move the window down by 100 pixels.
   Escape end
   ctrl+bracketleft end
 - q record ~/.keynav_macros
+ shift-at playback
  a history-back
  h cut-left
  j cut-down

@@ -16,6 +16,7 @@ daemonize  # background keynav
 clear      # clear all previous keybindings
 
 q record ~/.keynav_macros
+shift+at playback
 #ctrl+semicolon start, sh "exec transset-df -i $(xdotool search --class keynav) 0.3"
 e grid-nav toggle
 Tab restart
