@@ -12,7 +12,7 @@ B<keynav> [optional-startup-commands]
 
 B<keynav> is a utility for generally operating your mouse with your keyboard.
 The main usage is to divide the screen into sections, selecting them until you
-end up at the point where you want to move the mouse, or click, etc. 
+end up at the point where you want to move the mouse, or click, etc.
 
 You can pass any valid keynav commands to keynav from the command-line. Make
 sure you quote things properly.
@@ -142,11 +142,11 @@ window size to the given width and height (in pixels).
 This command makes the keynav window fit the current application window. This
 is useful if you have your windows in a tiled arrangement.
 
-=back 
+=back
 
 =head2 GRID COMMANDS
 
-=over 
+=over
 
 =item B<grid> I<[COLUMNSxROWS]>
 
@@ -220,7 +220,7 @@ bug if you are interested in this feature working :)
 
 =head2 MISC COMMANDS
 
-=over 
+=over
 
 =item B<record> I<[file]>
 
@@ -308,22 +308,22 @@ The '100' here means 100 pixels. This will move the window down by 100 pixels.
 =back
 
 =head1 SCREEN EDGES
--
- When moving the keynav window around, the window will not go outside of the
- screen boundaries. One exception is for multiple displays: a movement outside
- of the current screen can move the keynav window to the next screen if keynav
- things it's the right thing to do.
--
- If a move would take you beyond the screen borders, then the window will stop moving
- at the edge.
- 
- =head1 DEFAULT CONFIGURATION
--
-  clear
-  ctrl+semicolon start
-  Escape end
-  ctrl+bracketleft end
-- q record ~/.keynav_macros
+
+When moving the keynav window around, the window will not go outside of the
+screen boundaries. One exception is for multiple displays: a movement outside
+of the current screen can move the keynav window to the next screen if keynav
+things it's the right thing to do.
+
+If a move would take you beyond the screen borders, then the window will stop moving
+at the edge.
+
+=head1 DEFAULT CONFIGURATION
+
+ clear
+ ctrl+semicolon start
+ Escape end
+ ctrl+bracketleft end
+ q record ~/.keynav_macros
  shift-at playback
  a history-back
  h cut-left
