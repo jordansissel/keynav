@@ -383,6 +383,7 @@ void addbinding(int keycode, int mods, char *commands) {
                 "set it to '%s'. Keeping original value.\n",
                 recordings_filename, path);
       } else {
+        recordings_filename = newrecordingpath;
         parse_recordings(recordings_filename);
       }
     }
