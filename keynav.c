@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <X11/Xlib.h>
+#include <X11/XKBlib.h>
 #include <X11/Xresource.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
@@ -1502,7 +1503,7 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
     index += 1;
   }
 
-  KeySym sym = XKeycodeToKeysym(dpy, e->keycode, index);
+  KeySym sym = XkbKeycodeToKeysym(dpy, e->keycode, 0, index);
   char *key = XKeysymToString(sym);
 
   if (sym == XK_Escape) {
