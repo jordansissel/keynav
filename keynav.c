@@ -293,7 +293,7 @@ int parse_mods(char *keyseq) {
 
   int i = 0;
   /* Use all but the last token as modifiers */
-  const char **symbol_map = xdo_symbol_map();
+  const char **symbol_map = xdo_get_symbol_map();
   for (i = 0; i < mods->len; i++) {
     KeySym keysym = 0;
     int j = 0;
@@ -862,7 +862,7 @@ void cmd_start(char *args) {
 
     zone = XCreateSimpleWindow(dpy, viewport->root,
                                wininfo.x, wininfo.y, wininfo.w, wininfo.h, 0, 0, 0);
-    xdo_window_setclass(xdo, zone, "keynav", "keynav");
+    xdo_set_window_class(xdo, zone, "keynav", "keynav");
     canvas_gc = XCreateGC(dpy, zone, 0, NULL);
 
     canvas = XCreatePixmap(dpy, zone, viewport->w, viewport->h,
@@ -1025,7 +1025,7 @@ void cmd_cursorzoom(char *args) {
     height = width;
   }
 
-  xdo_mouselocation(xdo, &xloc, &yloc, NULL);
+  xdo_get_mouse_location(xdo, &xloc, &yloc, NULL);
 
   wininfo.x = xloc - (width / 2);
   wininfo.y = yloc - (height / 2);
@@ -1040,7 +1040,7 @@ void cmd_windowzoom(char *args) {
   int x, y;
   unsigned int width, height, border_width, depth;
 
-  xdo_window_get_active(xdo, &curwin);
+  xdo_get_active_window(xdo, &curwin);
   XGetGeometry(xdo->xdpy, curwin, &rootwin, &x, &y, &width, &height,
                &border_width, &depth);
   XTranslateCoordinates(xdo->xdpy, curwin, rootwin, 
@@ -1069,8 +1069,8 @@ void cmd_warp(char *args) {
   mouseinfo.y = y - wininfo.y;
   openpixel(dpy, zone, &mouseinfo);
 
-  xdo_mousemove(xdo, x, y, viewports[wininfo.curviewport].screen_num);
-  xdo_mouse_wait_for_move_to(xdo, x, y);
+  xdo_move_mouse(xdo, x, y, viewports[wininfo.curviewport].screen_num);
+  xdo_wait_for_mouse_move_to(xdo, x, y);
 
   /* TODO(sissel): do we need to open again? */
   openpixel(dpy, zone, &mouseinfo);
@@ -1083,7 +1083,7 @@ void cmd_click(char *args) {
   int button;
   button = atoi(args);
   if (button > 0)
-    xdo_click(xdo, CURRENTWINDOW, button);
+    xdo_click_window(xdo, CURRENTWINDOW, button);
   else
     fprintf(stderr, "Negative mouse button is invalid: %d\n", button);
 }
@@ -1121,19 +1121,19 @@ void cmd_drag(char *args) {
 
   if (ISDRAGGING) { /* End dragging */
     appstate.dragging = False;
-    xdo_mouseup(xdo, CURRENTWINDOW, button);
+    xdo_mouse_up(xdo, CURRENTWINDOW, button);
   } else { /* Start dragging */
     cmd_warp(NULL);
     appstate.dragging = True;
-    xdo_keysequence_down(xdo, 0, drag_modkeys, 12000);
-    xdo_mousedown(xdo, CURRENTWINDOW, button);
+    xdo_send_keysequence_window_down(xdo, 0, drag_modkeys, 12000);
+    xdo_mouse_down(xdo, CURRENTWINDOW, button);
 
     /* Sometimes we need to move a little to tell the app we're dragging */
     /* TODO(sissel): Make this a 'mousewiggle' command */
-    xdo_mousemove_relative(xdo, 1, 0);
-    xdo_mousemove_relative(xdo, -1, 0);
+    xdo_move_mouse_relative(xdo, 1, 0);
+    xdo_move_mouse_relative(xdo, -1, 0);
     XSync(xdo->xdpy, 0);
-    xdo_keysequence_up(xdo, 0, drag_modkeys, 12000);
+    xdo_send_keysequence_window_up(xdo, 0, drag_modkeys, 12000);
   }
 }
 
