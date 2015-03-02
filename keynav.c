@@ -1432,6 +1432,9 @@ void handle_keypress(XKeyEvent *e) {
   /* Ignore LockMask (Numlock, etc) and Mod2Mask (shift, etc) */
   e->state &= ~(LockMask | Mod2Mask);
 
+  /* Ignore different keyboard layouts (e.g. russian) */
+  e->state &= ~(1<<13);
+
   if (appstate.recording == record_getkey) {
     if (handle_recording(e) == HANDLE_STOP) {
       return;
