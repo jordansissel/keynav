@@ -601,7 +601,6 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   double h = info->h;
   double cell_width;
   double cell_height;
-  double x_off, y_off;
   int i;
   int rect = 0;
 
@@ -615,46 +614,84 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
   clock_gettime(CLOCK_MONOTONIC, &start);
 #endif
 
-  //printf("updategrid: clip:%d, draw:%d\n", apply_clip, draw);
+  if (w <= 4 || h <= 4) {
+      cairo_new_path(canvas_cairo);
+      cairo_fill(canvas_cairo);
+      return;
+  }
 
-  x_off = info->border_thickness / 2;
-  y_off = info->border_thickness / 2;
+  //printf("updategrid: clip:%d, draw:%d\n", apply_clip, draw);
 
   if (draw) {
     cairo_new_path(canvas_cairo);
     cairo_set_source_rgb(canvas_cairo, 1, 1, 1);
     cairo_rectangle(canvas_cairo, 0, 0, w, h);
-    cairo_fill(canvas_cairo);
     cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
+    cairo_fill(canvas_cairo);
   }
 
-  w -= info->border_thickness;
-  h -= info->border_thickness;
   cell_width = (w / info->grid_cols);
   cell_height = (h / info->grid_rows);
 
+  int x_total_offset = 0;
+
   /* clip vertically */
   for (i = 0; i <= info->grid_cols; i++) {
-    cairo_move_to(canvas_cairo, cell_width * i + x_off, y_off);
-    cairo_line_to(canvas_cairo, cell_width * i + x_off, h + 1);
+    int x_off = 0;
+    if (i > 0) {
+        x_off = -info->border_thickness / 2;
+    }
 
-    clip_rectangles[rect].x = cell_width * i;
+    if (i == info->grid_cols) {
+        x_total_offset = info->w - 1;
+    }
+
+    int x_w_off = 0;
+    if (i == 0 || i == info->grid_cols) {
+        x_w_off = info->border_thickness / 2;
+    }
+
+    cairo_move_to(canvas_cairo, x_total_offset + 1, 0);
+    cairo_line_to(canvas_cairo, x_total_offset + 1, info->h);
+
+    clip_rectangles[rect].x = x_total_offset + x_off;
     clip_rectangles[rect].y = 0;
-    clip_rectangles[rect].width = info->border_thickness;
+    clip_rectangles[rect].width = info->border_thickness - x_w_off;
     clip_rectangles[rect].height = info->h;
     rect++;
+
+    x_total_offset += cell_width;
   }
+
+  int y_total_offset = 0;
 
   /* clip horizontally */
   for (i = 0; i <= info->grid_rows; i++) {
-    cairo_move_to(canvas_cairo, x_off, cell_height * i + y_off);
-    cairo_line_to(canvas_cairo, w + 1, cell_height * i + y_off);
+    int y_off = 0;
+    if (i > 0) {
+        y_off = -info->border_thickness / 2;
+    }
+
+    if (i == info->grid_rows) {
+        y_total_offset = info->h - 1;
+    }
+
+    int y_w_off = 0;
+    if (i == 0 || i == info->grid_rows) {
+        y_w_off = info->border_thickness / 2;
+    }
+
+    cairo_move_to(canvas_cairo, 0, y_total_offset + 1);
+    cairo_line_to(canvas_cairo, info->w, y_total_offset + 1);
 
     clip_rectangles[rect].x = 0;
-    clip_rectangles[rect].y = cell_height * i;
+    clip_rectangles[rect].y = y_total_offset + y_off;
+
     clip_rectangles[rect].width = info->w;
-    clip_rectangles[rect].height = info->border_thickness;
+    clip_rectangles[rect].height = info->border_thickness - y_w_off;
     rect++;
+
+    y_total_offset += cell_height;
   }
 
   cairo_path_t *path = cairo_copy_path(canvas_cairo);
@@ -668,14 +705,8 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 #endif
 
   if (draw) {
-    cairo_set_source_rgb(canvas_cairo, 0.5, 0, 0);
-    cairo_set_line_width(canvas_cairo, 3);
-    cairo_stroke(canvas_cairo);
-
-    /* cairo_stroke clears the current path, put it back */
-    cairo_append_path(canvas_cairo, path);
+    cairo_set_source_rgba(canvas_cairo, 0, 0, 0, 1.0);
     cairo_set_line_width(canvas_cairo, 1);
-    cairo_set_source_rgba(canvas_cairo, 1, 1, 1, .7);
     cairo_stroke(canvas_cairo);
 
 #ifdef PROFILE_THINGS
@@ -857,7 +888,7 @@ void cmd_start(char *args) {
 
   if (zone == 0) { /* Create our window for the first time */
     viewport_t *viewport = &(viewports[wininfo.curviewport]);
-    
+
     depth = viewports[wininfo.curviewport].screen->root_depth;
     wininfo_history_cursor = 0;
 
@@ -909,9 +940,11 @@ void cmd_end(char *args) {
 
   appstate.active = False;
 
-  //XDestroyWindow(dpy, zone);
   XUnmapWindow(dpy, zone);
+  XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
+
+  zone = 0;
 }
 
 void cmd_history_back(char *args) {
@@ -1938,9 +1971,11 @@ int main(int argc, char **argv) {
         break;
 
       case Expose:
-        XCopyArea(dpy, canvas, zone, canvas_gc, e.xexpose.x, e.xexpose.y,
-                  e.xexpose.width, e.xexpose.height,
-                  e.xexpose.x, e.xexpose.y);
+        if (zone) {
+            XCopyArea(dpy, canvas, zone, canvas_gc, e.xexpose.x, e.xexpose.y,
+                      e.xexpose.width, e.xexpose.height,
+                      e.xexpose.x, e.xexpose.y);
+        }
         break;
 
       case MotionNotify:
