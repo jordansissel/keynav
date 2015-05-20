@@ -27,7 +27,9 @@ Another example: daemonize on startup:
 =head1 CONFIGURATION
 
 keynav is configured by default from a config file in your home directory
-"~/.keynavrc"
+"~/.keynavrc" or "$XDG_CONFIG_HOME/keynav/keynavrc" per the XDG Base Directory
+standard (defaulting to "~/.config/keynav/keynavrc" if XDG_CONFIG_HOME is not
+set).
 
 The default configuration can be found in the L<DEFAULT CONFIGURATION> section.
 

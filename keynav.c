@@ -444,6 +444,19 @@ void parse_config() {
   defaults();
   parse_config_file(GLOBAL_CONFIG_FILE);
   parse_config_file("~/.keynavrc");
+
+  // support XDG Base Directory
+  char *config_home = getenv("XDG_CONFIG_HOME");
+  char *user_config_file;
+
+  if (config_home &&
+      asprintf(&user_config_file, "%s/keynav/keynavrc", config_home) != -1) {
+    parse_config_file(user_config_file);
+    free(user_config_file);
+  } else {
+    // standard default if XDG_CONFIG_HOME is not set
+    parse_config_file("~/.config/keynav/keynavrc");
+  }
 }
 
 void defaults() {
