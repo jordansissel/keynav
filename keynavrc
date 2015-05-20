@@ -65,6 +65,24 @@ ctrl+u cut-right,cut-up
 ctrl+b cut-left,cut-down
 ctrl+n cut-right,cut-down
 
+# Arrow keys can move the grid as welll
+Left cut-left
+Down cut-down
+Up cut-up
+Right cut-right
+shift+Left move-left
+shift+Down move-down
+shift+Up move-up
+shift+Right move-right
+ctrl+Left cut-left
+ctrl+Down cut-down
+ctrl+Up cut-up
+ctrl+Right cut-right
+ctrl+shift+Left move-left
+ctrl+shift+Down move-down
+ctrl+shift+Up move-up
+ctrl+shift+Right move-right
+
 # Record keynav actions
 q record
 shift+at playback
