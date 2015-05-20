@@ -131,12 +131,12 @@ a history-back
 
 ### Example using a 3x3 grid with nethack-vi keys
 #ctrl+semicolon start, grid 3x3
-#h cell-select 2x1      # left
-#j cell-select 3x2      # down
-#k cell-select 1x2      # up
-#l cell-select 2x3      # right
+#h cell-select 1x2      # left
+#j cell-select 2x3      # down
+#k cell-select 2x1      # up
+#l cell-select 3x2      # right
 #y cell-select 1x1      # up-left
-#u cell-select 1x3      # up-right
-#b cell-select 3x1      # down-left
+#u cell-select 3x1      # up-right
+#b cell-select 1x3      # down-left
 #n cell-select 3x3      # down-right
 #period cell-select 2x2 # center
