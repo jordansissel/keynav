@@ -67,6 +67,7 @@ ctrl+n cut-right,cut-down
 
 # Record keynav actions
 q record
+shift+at playback
 
 ### Example using the 'sh' command.
 # Make firefox the active window
