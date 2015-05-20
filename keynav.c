@@ -411,7 +411,7 @@ void parse_config_file(const char* file) {
               "No HOME set in environment. Can't expand '%s' (fatal error)\n",
               file);
       /* This is fatal. */
-      exit(1);
+      exit(EXIT_FAILURE);
     }
   } /* if file[0] == '~' */
 
@@ -1921,12 +1921,12 @@ int main(int argc, char **argv) {
 
   if ((pcDisplay = getenv("DISPLAY")) == NULL) {
     fprintf(stderr, "Error: DISPLAY environment variable not set\n");
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
 
   if ((dpy = XOpenDisplay(pcDisplay)) == NULL) {
     fprintf(stderr, "Error: Can't open display: %s\n", pcDisplay);
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
 
   if (argc > 1 && (!strcmp(argv[1], "version") 
