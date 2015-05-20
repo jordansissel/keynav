@@ -1,6 +1,17 @@
-CFLAGS+=$(shell pkg-config --cflags cairo-xlib xinerama glib-2.0 xext x11 xtst 2> /dev/null || echo -I/usr/X11R6/include -I/usr/local/include)
-LDFLAGS+=$(shell pkg-config --libs cairo-xlib xinerama glib-2.0 xext x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext -lglib)
-LDFLAGS+=$(shell pkg-config --libs glib-2.0)
+CFLAGS+=$(shell pkg-config --cflags cairo-xlib 2> /dev/null)
+CFLAGS+=$(shell pkg-config --cflags xinerama 2> /dev/null)
+CFLAGS+=$(shell pkg-config --cflags glib-2.0 2> /dev/null)
+CFLAGS+=$(shell pkg-config --cflags xext 2> /dev/null)
+CFLAGS+=$(shell pkg-config --cflags x11 2> /dev/null)
+CFLAGS+=$(shell pkg-config --cflags xtst 2> /dev/null)
+
+LDFLAGS+=$(shell pkg-config --libs cairo-xlib 2> /dev/null)
+LDFLAGS+=$(shell pkg-config --libs xinerama 2> /dev/null)
+LDFLAGS+=$(shell pkg-config --libs glib-2.0 2> /dev/null)
+LDFLAGS+=$(shell pkg-config --libs xext 2> /dev/null)
+LDFLAGS+=$(shell pkg-config --libs x11 2> /dev/null)
+LDFLAGS+=$(shell pkg-config --libs xtst 2> /dev/null)
+LDFLAGS+=-g
 
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile version.sh VERSION
