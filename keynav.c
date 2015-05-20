@@ -1344,8 +1344,8 @@ void update() {
 
     /* Under Gnome3/GnomeShell, it seems to ignore this move+resize request
      * unless we sync and sleep here. Sigh. Gnome is retarded. */
-    //XSync(dpy, 0);
-    //usleep(5000);
+    XSync(dpy, 0);
+    usleep(5000);
   } else if (resize) {
     XResizeWindow(dpy, zone, wininfo.w, wininfo.h);
   } else if (move) {
