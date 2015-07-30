@@ -241,6 +241,8 @@ typedef struct keybinding {
 } keybinding_t; 
 
 GPtrArray *keybindings = NULL;
+int startKeycode = 0;
+int startKeymods = 0;
 
 int parse_keycode(char *keyseq) {
   char *tokctx;
@@ -348,6 +350,8 @@ void addbinding(int keycode, int mods, char *commands) {
 
   if (!strncmp(commands, "start", 5)) {
     int i = 0;
+    startKeycode = keycode;
+    startKeymods = mods;
     /* Grab on all screen root windows */
     for (i = 0; i < ScreenCount(dpy); i++) {
       Window root = RootWindow(dpy, i);
@@ -541,6 +545,17 @@ int parse_config_line(char *orig_line) {
     /* Reset keybindings */
     g_ptr_array_free(keybindings, TRUE);
     keybindings = g_ptr_array_new();
+    if(startKeycode != 0){
+      int i;
+      for (i = 0; i < ScreenCount(dpy); i++) {
+        Window root = RootWindow(dpy, i);
+        XUngrabKey(dpy, startKeycode, startKeymods, root);
+        XUngrabKey(dpy, startKeycode, startKeymods | LockMask, root);
+        XUngrabKey(dpy, startKeycode, startKeymods | Mod2Mask, root);
+        XUngrabKey(dpy, startKeycode, startKeymods | LockMask | Mod2Mask, root);
+      }
+      startKeycode = startKeymods = 0;
+    }
   } else if (strcmp(keyseq, "daemonize") == 0) {
     handle_commands(keyseq);
   } else if (strcmp(keyseq, "loadconfig") == 0) {
