@@ -19,7 +19,7 @@ VERSION=$(shell sh version.sh)
 #CFLAGS+=-DPROFILE_THINGS
 #LDFLAGS+=-lrt
 
-.PHONY: all
+.PHONY: all uninstall
 
 all: keynav
 
@@ -64,3 +64,14 @@ test-package-build: create-package
 
 keynav.1: keynav.pod
 	pod2man -c "" -r "" $< > $@
+
+install: keynav keynav.1
+	install ./keynav $(PREFIX)/bin/keynav
+	rm -f keynav.1.gz
+	gzip keynav.1
+	mkdir -p $(PREFIX)/share/man/man1
+	install ./keynav.1.gz $(PREFIX)/share/man/man1/
+
+uninstall:
+	rm -f $(PREFIX)/bin/keynav
+	rm -f $(PREFIX)/share/man/man1/keynav.1.gz
