@@ -2,6 +2,8 @@ CFLAGS+=$(shell pkg-config --cflags cairo-xlib xinerama glib-2.0 xext x11 xtst 2
 LDFLAGS+=$(shell pkg-config --libs cairo-xlib xinerama glib-2.0 xext x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext -lglib)
 LDFLAGS+=$(shell pkg-config --libs glib-2.0)
 
+PREFIX=/usr
+
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile version.sh VERSION
 #CFLAGS+=-DPROFILE_THINGS
