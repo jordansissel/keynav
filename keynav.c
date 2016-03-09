@@ -1526,7 +1526,7 @@ handler_info_t handle_recording(XKeyEvent *e) {
 
   //printf("Recording as keycode:%d\n", e->keycode);
   active_recording->keycode = e->keycode;
-  return HANDLE_CONTINUE;
+  return HANDLE_STOP;
 }
 
 handler_info_t handle_gridnav(XKeyEvent *e) {
