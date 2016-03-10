@@ -1589,12 +1589,41 @@ handler_info_t handle_gridnav(XKeyEvent *e) {
 
 void handle_commands(char *commands) {
   char *cmdcopy;
-  char *tokctx, *tok, *strptr;
+  char *tokctx, *tok, *strptr, *copyptr;
+  int is_quoted, is_escaped;
 
-  //printf("Commands; %s\n", commands);
   cmdcopy = strdup(commands);
-  strptr = cmdcopy;
-  while ((tok = strtok_r(strptr, ",", &tokctx)) != NULL) {
+  copyptr = cmdcopy;
+  while (*copyptr != '\0') {
+    /* Parse with knowledge of quotes and escaping */
+    is_quoted = is_escaped = FALSE;
+    strptr = tok = copyptr;
+    while (*copyptr != '\0' && (is_quoted == TRUE || *copyptr != ',')) {
+      if (is_escaped == TRUE) {
+        is_escaped = FALSE;
+      }
+
+      if (*copyptr == '"' && is_escaped == FALSE) {
+        is_quoted = !is_quoted;
+      }
+
+      if (*copyptr == '\\' && is_escaped == FALSE) {
+        is_escaped = TRUE;
+        copyptr++;
+      }
+
+      *strptr = *copyptr;
+
+      strptr++;
+      copyptr++;
+    }
+
+    if (*strptr != '\0') {
+      *strptr = '\0';
+
+      copyptr++;
+    }
+
     int i;
     int found = 0;
     strptr = NULL;
@@ -1624,6 +1653,7 @@ void handle_commands(char *commands) {
          *          ^^^^^^^^^ <-- this 
          */
         char *args = tok + cmdlen;
+
         if (*args == '\0')
           args = "";
         else
