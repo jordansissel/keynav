@@ -820,33 +820,7 @@ void updategridtext(Window win, struct wininfo *info, int apply_clip, int draw) 
   } /* Draw rectangles and text */
 } /* void updategridtext */
 
-void cmd_start(char *args) {
-  XSetWindowAttributes winattr;
-  int i;
-  int screen;
-
-  screen = query_current_screen();
-  wininfo.curviewport = screen;
-
-  appstate.grid_nav_row = -1;
-  appstate.grid_nav_col = -1;
-
-  wininfo.x = viewports[wininfo.curviewport].x;
-  wininfo.y = viewports[wininfo.curviewport].y;
-  wininfo.w = viewports[wininfo.curviewport].w;
-  wininfo.h = viewports[wininfo.curviewport].h;
-  
-  /* Default start with 4 cells, 2x2 */
-  wininfo.grid_rows = 2;
-  wininfo.grid_cols = 2;
-
-  wininfo.border_thickness = 3;
-  wininfo.center_cut_size = 3;
-
-  if (ISACTIVE)
-    return;
-
-  int depth;
+void grab_keyboard() {
   int grabstate;
   int grabtries = 0;
 
@@ -881,6 +855,37 @@ void cmd_start(char *args) {
     }
   }
   //printf("Got grab!\n");
+}
+
+void cmd_start(char *args) {
+  XSetWindowAttributes winattr;
+  int i;
+  int screen;
+
+  screen = query_current_screen();
+  wininfo.curviewport = screen;
+
+  appstate.grid_nav_row = -1;
+  appstate.grid_nav_col = -1;
+
+  wininfo.x = viewports[wininfo.curviewport].x;
+  wininfo.y = viewports[wininfo.curviewport].y;
+  wininfo.w = viewports[wininfo.curviewport].w;
+  wininfo.h = viewports[wininfo.curviewport].h;
+
+  grab_keyboard();
+
+  /* Default start with 4 cells, 2x2 */
+  wininfo.grid_rows = 2;
+  wininfo.grid_cols = 2;
+
+  wininfo.border_thickness = 3;
+  wininfo.center_cut_size = 3;
+
+  if (ISACTIVE)
+    return;
+
+  int depth;
 
   appstate.active = True;
   appstate.need_draw = 1;
@@ -941,6 +946,13 @@ void cmd_end(char *args) {
   appstate.active = False;
 
   XUnmapWindow(dpy, zone);
+  cairo_destroy(shape_cairo);
+  cairo_surface_destroy(shape_surface);
+  cairo_destroy(canvas_cairo);
+  cairo_surface_destroy(canvas_surface);
+  XFreePixmap(dpy, shape);
+  XFreePixmap(dpy, canvas);
+  XFreeGC(dpy, canvas_gc);
   XDestroyWindow(dpy, zone);
   XUngrabKeyboard(dpy, CurrentTime);
 
@@ -2034,4 +2046,3 @@ int main(int argc, char **argv) {
 
   xdo_free(xdo);
 } /* int main */
-
