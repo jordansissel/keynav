@@ -390,8 +390,22 @@ L<http://code.google.com/p/semicomplete/issues/list>
 Alternately, if you really prefer email, feel free to file bugs by emailing the
 list. What works for you :)
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-keynav was written by Jordan Sissel.
+keynav was originally written by Jordan Sissel.
+This version includes changes, enhancements, and fixes from at least the following (based on git logs):
+
+Brian Cole
+Dabo Ross
+Denis Kasak
+Jordan Sissel
+Krister Svanlund
+Marek Marecki
+Shou Ya
+Stanislav Seletskiy
+Tyler Akins
+aszlig
+lilydjwg
+
 
 =cut
