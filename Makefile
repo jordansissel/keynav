@@ -2,6 +2,8 @@ CFLAGS+=$(shell pkg-config --cflags cairo-xlib xinerama glib-2.0 xext x11 xtst 2
 LDFLAGS+=$(shell pkg-config --libs cairo-xlib xinerama glib-2.0 xext x11 xtst 2> /dev/null || echo -L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lXext -lglib)
 LDFLAGS+=$(shell pkg-config --libs glib-2.0)
 
+PREFIX=/usr
+
 OTHERFILES=README CHANGELIST COPYRIGHT \
            keynavrc Makefile version.sh VERSION
 #CFLAGS+=-DPROFILE_THINGS
@@ -17,12 +19,12 @@ VERSION=$(shell sh version.sh)
 #CFLAGS+=-DPROFILE_THINGS
 #LDFLAGS+=-lrt
 
-.PHONY: all
+.PHONY: all uninstall
 
 all: keynav
 
 clean:
-	rm *.o keynav keynav_version.h || true;
+	rm -f *.o keynav keynav_version.h keynav.1.gz
 
 keynav.o: keynav_version.h
 keynav_version.h: version.sh
@@ -62,3 +64,14 @@ test-package-build: create-package
 
 keynav.1: keynav.pod
 	pod2man -c "" -r "" $< > $@
+
+install: keynav keynav.1
+	install ./keynav $(PREFIX)/bin/keynav
+	rm -f keynav.1.gz
+	gzip keynav.1
+	mkdir -p $(PREFIX)/share/man/man1
+	install ./keynav.1.gz $(PREFIX)/share/man/man1/
+
+uninstall:
+	rm -f $(PREFIX)/bin/keynav
+	rm -f $(PREFIX)/share/man/man1/keynav.1.gz
