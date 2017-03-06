@@ -2,7 +2,10 @@
 /keynav.1
 /keynav.1.gz
 /keynav_version.h
+/VERSION
 *.o
+/keynav-*.tar.gz
+
 
 .*
 !.gitignore
