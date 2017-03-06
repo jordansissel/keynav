@@ -7,7 +7,6 @@ LDFLAGS+=$(shell pkg-config --libs cairo-xlib 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs xinerama 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs glib-2.0 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs x11 2> /dev/null)
-LDFLAGS+=-g
 
 PREFIX=/usr
 
