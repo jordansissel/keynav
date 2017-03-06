@@ -12,14 +12,11 @@ PREFIX=/usr
 
 OTHERFILES=README.md CHANGELIST COPYRIGHT keynav.pod \
            keynavrc Makefile version.sh VERSION
-#CFLAGS+=-DPROFILE_THINGS
-#LDFLAGS+=-lrt
 
 VERSION=$(shell sh version.sh)
 
 #CFLAGS+=-pg -g
 #LDFLAGS+=-pg -g
-#LDFLAGS+=-L/usr/lib/debug/usr/lib/ -lcairo -lX11 -lXinerama -LXtst -lXext
 #CFLAGS+=-O2
 
 #CFLAGS+=-DPROFILE_THINGS
