@@ -1,16 +1,12 @@
 CFLAGS+=$(shell pkg-config --cflags cairo-xlib 2> /dev/null)
 CFLAGS+=$(shell pkg-config --cflags xinerama 2> /dev/null)
 CFLAGS+=$(shell pkg-config --cflags glib-2.0 2> /dev/null)
-CFLAGS+=$(shell pkg-config --cflags xext 2> /dev/null)
 CFLAGS+=$(shell pkg-config --cflags x11 2> /dev/null)
-CFLAGS+=$(shell pkg-config --cflags xtst 2> /dev/null)
 
 LDFLAGS+=$(shell pkg-config --libs cairo-xlib 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs xinerama 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs glib-2.0 2> /dev/null)
-LDFLAGS+=$(shell pkg-config --libs xext 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs x11 2> /dev/null)
-LDFLAGS+=$(shell pkg-config --libs xtst 2> /dev/null)
 LDFLAGS+=-g
 
 PREFIX=/usr
