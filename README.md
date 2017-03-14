@@ -16,3 +16,7 @@ You may need some extra libraries to compile keynav.  On Debian and Ubuntu you c
 Next you simply run make:
 
     make
+
+This will produce an executable `./keynav` which may be run directly (or copied
+somewhere in your path). You can also install (by default directly to `/usr`)
+via `make install`.
