@@ -20,3 +20,5 @@ Next you simply run make:
 This will produce an executable `./keynav` which may be run directly (or copied
 somewhere in your path). You can also install (by default directly to `/usr`)
 via `make install`.
+
+On FreeBSD (and, I expect, other non-GNU platforms), you will want to use gmake.
