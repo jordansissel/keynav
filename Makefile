@@ -34,7 +34,7 @@ keynav_version.h: version.sh
 
 keynav: LDFLAGS+=-Xlinker -rpath=/usr/local/lib
 keynav: keynav.o
-	$(CC) keynav.o -o $@ $(LDFLAGS) -lxdo; \
+	$(CC) keynav.o -o keynav $(CFLAGS) $(LDFLAGS) -lxdo
 
 keynav_version.h:
 	sh version.sh --header > $@
