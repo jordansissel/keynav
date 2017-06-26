@@ -69,6 +69,7 @@ keynav.1: keynav.pod
 	pod2man -c "" -r "" $< > $@
 
 install: keynav keynav.1
+	mkdir -p $(PREFIX)/bin
 	install ./keynav $(PREFIX)/bin/keynav
 	rm -f keynav.1.gz
 	gzip keynav.1
