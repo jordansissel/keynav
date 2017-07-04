@@ -48,9 +48,12 @@ A: Yes! X11 represents mouse scrolling as key presses, so you just add the
 relevant stanza to your keynavrc.  Mouse buttons are
 1=left, 2=middle, 3=right, 4=scroll-up, 5=scroll-down. So for example to scroll
 up with i and down with e:
-    i click 4,end
-    e click 5,end
+```
+i click 4,end
+e click 5,end
+```
 or to keep scrolling without having to re-invoke keynav:
-    i click 4
-    e click 5
-
+```
+i click 4
+e click 5
+```
