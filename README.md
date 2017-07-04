@@ -46,14 +46,12 @@ let me know and I'll consider adding it to this list.
 Q: Can I use keynav to scroll?  
 A: Yes! X11 represents mouse scrolling as key presses, so you just add the
 relevant stanza to your keynavrc.  Mouse buttons are
-1=left, 2=middle, 3=right, 4=scroll-up, 5=scroll-down. So for example to scroll
-up with i and down with e:
+1=left, 2=middle, 3=right, 4=scroll-up, 5=scroll-down, 6=scroll-left, 7=scroll-right. So for example to scroll up with i and down with e:
 ```
 i click 4,end
 e click 5,end
 ```
-or to keep scrolling without having to re-invoke keynav:
+or to keep scrolling without having to re-invoke keynav, remove the end command from the bindings, like this:
 ```
 i click 4
-e click 5
 ```
