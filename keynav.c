@@ -319,6 +319,16 @@ int parse_mods(char *keyseq) {
     if ((keysym == XK_Super_L) || (keysym == XK_Super_R)
         || (keysym == XK_Hyper_L) || (keysym == XK_Hyper_R))
       modmask |= Mod4Mask;
+    if (!strcasecmp(mod, "mod1"))
+      modmask |= Mod1Mask;
+    if (!strcasecmp(mod, "mod2"))
+      modmask |= Mod2Mask;
+    if (!strcasecmp(mod, "mod3"))
+      modmask |= Mod3Mask;
+    if (!strcasecmp(mod, "mod4"))
+      modmask |= Mod4Mask;
+    if (!strcasecmp(mod, "mod5"))
+      modmask |= Mod5Mask;
 
     /* 'xmodmap' will output the current modN:KeySym mappings */
   }
