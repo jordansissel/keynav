@@ -144,6 +144,7 @@ void cmd_daemonize(char *args);
 void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
 void cmd_end(char *args);
+void cmd_toggle_start(char *args);
 void cmd_grid(char *args);
 void cmd_grid_nav(char *args);
 void cmd_history_back(char *args);
@@ -226,6 +227,7 @@ dispatch_t dispatch[] = {
   "sh", cmd_shell,
   "start", cmd_start,
   "end", cmd_end,
+  "toggle-start", cmd_toggle_start,
   "history-back", cmd_history_back,
   "quit", cmd_quit,
   "restart", cmd_restart,
@@ -363,7 +365,7 @@ void addbinding(int keycode, int mods, char *commands) {
   keybinding->mods = mods;
   g_ptr_array_add(keybindings, keybinding);
 
-  if (!strncmp(commands, "start", 5)) {
+  if (!strncmp(commands, "start", 5) || !strncmp(commands, "toggle-start", 12)) {
     int i = 0;
     startkey_t *startkey = calloc(sizeof(startkey_t), 1);
     startkey->keycode = keycode;
@@ -1013,6 +1015,14 @@ void cmd_end(char *args) {
   XUngrabKeyboard(dpy, CurrentTime);
 
   zone = 0;
+}
+
+void cmd_toggle_start(char *args) {
+  if (ISACTIVE) {
+    cmd_end(args);
+  } else {
+    cmd_start(args);
+  }
 }
 
 void cmd_history_back(char *args) {
