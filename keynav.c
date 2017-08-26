@@ -241,8 +241,13 @@ typedef struct keybinding {
 } keybinding_t; 
 
 GPtrArray *keybindings = NULL;
-int startKeycode = 0;
-int startKeymods = 0;
+
+typedef struct startkey {
+  int keycode;
+  int mods;
+} startkey_t;
+
+GPtrArray *startkeys = NULL;
 
 int parse_keycode(char *keyseq) {
   char *tokctx;
@@ -360,8 +365,10 @@ void addbinding(int keycode, int mods, char *commands) {
 
   if (!strncmp(commands, "start", 5)) {
     int i = 0;
-    startKeycode = keycode;
-    startKeymods = mods;
+    startkey_t *startkey = calloc(sizeof(startkey_t), 1);
+    startkey->keycode = keycode;
+    startkey->mods = mods;
+    g_ptr_array_add(startkeys, startkey);
     /* Grab on all screen root windows */
     for (i = 0; i < ScreenCount(dpy); i++) {
       Window root = RootWindow(dpy, i);
@@ -457,6 +464,7 @@ void parse_config() {
   char *homedir;
 
   keybindings = g_ptr_array_new();
+  startkeys = g_ptr_array_new();
   recordings = g_ptr_array_new();
 
   defaults();
@@ -572,16 +580,21 @@ int parse_config_line(char *orig_line) {
     /* Reset keybindings */
     g_ptr_array_free(keybindings, TRUE);
     keybindings = g_ptr_array_new();
-    if(startKeycode != 0){
-      int i;
-      for (i = 0; i < ScreenCount(dpy); i++) {
+
+    /* ungrab keybindings associated with start */
+    if (startkeys->len > 0) {
+      for (int i = 0; i < ScreenCount(dpy); i++) {
         Window root = RootWindow(dpy, i);
-        XUngrabKey(dpy, startKeycode, startKeymods, root);
-        XUngrabKey(dpy, startKeycode, startKeymods | LockMask, root);
-        XUngrabKey(dpy, startKeycode, startKeymods | Mod2Mask, root);
-        XUngrabKey(dpy, startKeycode, startKeymods | LockMask | Mod2Mask, root);
+        for (int j = 0; j < startkeys->len; j++) {
+          startkey_t *sk = g_ptr_array_index(startkeys, j);
+          XUngrabKey(dpy, sk->keycode, sk->mods, root);
+          XUngrabKey(dpy, sk->keycode, sk->mods | LockMask, root);
+          XUngrabKey(dpy, sk->keycode, sk->mods | Mod2Mask, root);
+          XUngrabKey(dpy, sk->keycode, sk->mods | LockMask | Mod2Mask, root);
+        }
       }
-      startKeycode = startKeymods = 0;
+      g_ptr_array_free(startkeys, TRUE);
+      startkeys = g_ptr_array_new();
     }
   } else if (strcmp(keyseq, "daemonize") == 0) {
     handle_commands(keyseq);
