@@ -1715,8 +1715,9 @@ void handle_commands(char *commands) {
        */
 
       /* If this command starts with a dispatch function, call it */
-      size_t cmdlen = strcspn(tok, " \t");
-      if (!strncmp(tok, dispatch[i].command, cmdlen)) {
+      size_t cmdlen = strlen(dispatch[i].command);
+      size_t tokcmdlen = strcspn(tok, " \t");
+      if (cmdlen == tokcmdlen && !strncmp(tok, dispatch[i].command, cmdlen)) {
         /* tok + len + 1 is
          * "command arg1 arg2"
          *          ^^^^^^^^^ <-- this
@@ -1730,7 +1731,7 @@ void handle_commands(char *commands) {
 
         found = 1;
         dispatch[i].func(args);
-
+        break;
       }
     }
 
