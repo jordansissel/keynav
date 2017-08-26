@@ -407,5 +407,6 @@ Tyler Akins
 aszlig
 lilydjwg
 Alex Daniel
+Michael Sloan
 
 =cut
