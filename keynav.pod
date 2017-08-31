@@ -266,6 +266,11 @@ Start keynav. Any keys with this binding will operate as global bindings to acti
 End keynav. This hides the keynav window and otherwise makes keynav inactive
 until the next 'start' command.
 
+=item B<toggle-start>
+
+Toggle keynav.  If keynav is active, this makes it inactive.  If keynav is
+inactive, this makes it active.
+
 =item B<history-back>
 
 Go backwards in command history. All activity is tracked in history, so if you
@@ -406,6 +411,7 @@ Stanislav Seletskiy
 Tyler Akins
 aszlig
 lilydjwg
-
+Alex Daniel
+Michael Sloan
 
 =cut
