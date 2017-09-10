@@ -27,7 +27,7 @@ On FreeBSD (and, I expect, other non-GNU platforms), you will want to use gmake.
 FAQ
 ---
 
-Q: What platforms are supportded?  
+Q: What platforms are supported?  
 A: keynav should work on nearly any Unix-like that runs X11. It has been
 confirmed to work on extremely varied GNU/Linux systems (incuding RPM-based,
 Debian derivatives, musl-based systems, and Arch), and FreeBSD. If you get it to
