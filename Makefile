@@ -7,6 +7,7 @@ LDFLAGS+=$(shell pkg-config --libs cairo-xlib 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs xinerama 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs glib-2.0 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs x11 2> /dev/null)
+LDFLAGS+=-Xlinker -rpath=/usr/local/lib
 
 PREFIX=/usr
 
@@ -14,13 +15,6 @@ OTHERFILES=README.md CHANGELIST COPYRIGHT keynav.pod \
            keynavrc Makefile version.sh VERSION
 
 VERSION=$(shell sh version.sh)
-
-#CFLAGS+=-pg -g
-#LDFLAGS+=-pg -g
-#CFLAGS+=-O2
-
-#CFLAGS+=-DPROFILE_THINGS
-#LDFLAGS+=-lrt
 
 .PHONY: all uninstall
 
@@ -32,9 +26,17 @@ clean:
 keynav.o: keynav_version.h
 keynav_version.h: version.sh
 
-keynav: LDFLAGS+=-Xlinker -rpath=/usr/local/lib
+debug:CFLAGS+=-DPROFILE_THINGS
+#debug:CFLAGS+=-pg
+debug:CFLAGS+=-g
+#debug:LDFLAGS+=-lrt
+debug: keynav.o
+	$(CC) keynav.o -o keynav $(CFLAGS) $(LDFLAGS) -lxdo
+
+keynav:CFLAGS+=-O2
 keynav: keynav.o
 	$(CC) keynav.o -o keynav $(CFLAGS) $(LDFLAGS) -lxdo
+	strip keynav
 
 keynav_version.h:
 	sh version.sh --header > $@
