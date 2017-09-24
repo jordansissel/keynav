@@ -1155,15 +1155,17 @@ void cmd_windowzoom(char *args) {
   unsigned int width, height, border_width, depth;
 
   xdo_get_active_window(xdo, &curwin);
-  XGetGeometry(xdo->xdpy, curwin, &rootwin, &x, &y, &width, &height,
-               &border_width, &depth);
-  XTranslateCoordinates(xdo->xdpy, curwin, rootwin,
-                        -border_width, -border_width, &x, &y, &dummy_win);
+  if (curwin) {
+    XGetGeometry(xdo->xdpy, curwin, &rootwin, &x, &y, &width, &height,
+                 &border_width, &depth);
+    XTranslateCoordinates(xdo->xdpy, curwin, rootwin,
+                          -border_width, -border_width, &x, &y, &dummy_win);
 
-  wininfo.x = x;
-  wininfo.y = y;
-  wininfo.w = width;
-  wininfo.h = height;
+    wininfo.x = x;
+    wininfo.y = y;
+    wininfo.w = width;
+    wininfo.h = height;
+  }
 }
 
 void cmd_warp(char *args) {
