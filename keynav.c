@@ -1712,7 +1712,7 @@ void handle_commands(char *commands) {
       g_ptr_array_add(active_recording->commands, (gpointer) strdup(tok));
     }
 
-    for (i = 0; dispatch[i].command; i++) {
+    for (i = 0; dispatch[i].command && !found; i++) {
       /* XXX: This approach means we can't have one command be a subset of
        * another. For example, 'grid' and 'grid-foo' will fail because when you
        * use 'grid-foo' it'll match 'grid' first.
@@ -1736,7 +1736,6 @@ void handle_commands(char *commands) {
 
         found = 1;
         dispatch[i].func(args);
-        break;
       }
     }
 
