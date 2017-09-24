@@ -328,8 +328,9 @@ int parse_mods(char *keyseq) {
       modmask |= Mod4Mask;
     if (!strcasecmp(mod, "mod1"))
       modmask |= Mod1Mask;
+    // See masking of state in handle_keypress
     if (!strcasecmp(mod, "mod2"))
-      modmask |= Mod2Mask;
+      printf("Error in configuration: keynav does not support mod2 modifier, but other modifiers are supported.");
     if (!strcasecmp(mod, "mod3"))
       modmask |= Mod3Mask;
     if (!strcasecmp(mod, "mod4"))
@@ -1535,16 +1536,10 @@ void viewport_left() {
 
 void handle_keypress(XKeyEvent *e) {
   int i;
-  /* If a mouse button is pressed (like, when we're dragging),
-   * then the 'mods' will include values like Button1Mask.
-   * Let's remove those, as they cause breakage */
-  e->state &= ~(Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask);
 
-  /* Ignore LockMask (Numlock, etc) and Mod2Mask (shift, etc) */
-  e->state &= ~(LockMask | Mod2Mask);
-
-  /* Ignore different keyboard layouts (e.g. russian) */
-  e->state &= ~(1<<13);
+  /* Only pay attention to shift. In particular, things not included here are
+   * mouse buttons (active when dragging), numlock (including Mod2Mask) */
+  e->state &= (ShiftMask | ControlMask | Mod1Mask | Mod3Mask | Mod4Mask | Mod4Mask);
 
   if (appstate.recording == record_getkey) {
     if (handle_recording(e) == HANDLE_STOP) {
