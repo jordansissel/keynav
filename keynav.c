@@ -21,6 +21,7 @@
 #include <X11/keysym.h>
 #include <X11/extensions/shape.h>
 #include <X11/extensions/Xinerama.h>
+#include <X11/extensions/Xrandr.h>
 #include <glib.h>
 #include <cairo-xlib.h>
 
@@ -1812,6 +1813,7 @@ void query_screen_xinerama() {
   XineramaScreenInfo *screeninfo;
 
   screeninfo = XineramaQueryScreens(dpy, &nviewports);
+  free(viewports);
   viewports = calloc(nviewports, sizeof(viewport_t));
   for (i = 0; i < nviewports; i++) {
     viewports[i].x = screeninfo[i].x_org;
@@ -1829,6 +1831,7 @@ void query_screen_normal() {
   int i;
   Screen *s;
   nviewports = ScreenCount(dpy);
+  free(viewports);
   viewports = calloc(nviewports, sizeof(viewport_t));
 
   for (i = 0; i < nviewports; i++) {
@@ -2049,6 +2052,15 @@ int main(int argc, char **argv) {
    * before we try to daemonize */
   XSync(dpy, 0);
 
+  /* If xrandr is enabled, ask to receive events for screen configuration
+   * changes. */
+  int xrandr_event_base = 0;
+  int xrandr_error_base = 0;
+  int xrandr = XRRQueryExtension (dpy, &xrandr_event_base, &xrandr_error_base);
+  if (xrandr) {
+    XRRSelectInput(dpy, DefaultRootWindow(dpy), RRScreenChangeNotifyMask);
+  }
+
   if (daemonize) {
     printf("Daemonizing now...\n");
     daemon(0, 0);
@@ -2101,7 +2113,11 @@ int main(int argc, char **argv) {
       case MappingNotify: // when keyboard mapping changes
         break;
       default:
-        printf("Unexpected X11 event: %d\n", e.type);
+        if (e.type == xrandr_event_base + RRScreenChangeNotify) {
+          query_screens();
+        } else {
+          printf("Unexpected X11 event: %d\n", e.type);
+        }
         break;
     }
   }

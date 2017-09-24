@@ -2,11 +2,13 @@ CFLAGS+=$(shell pkg-config --cflags cairo-xlib 2> /dev/null)
 CFLAGS+=$(shell pkg-config --cflags xinerama 2> /dev/null)
 CFLAGS+=$(shell pkg-config --cflags glib-2.0 2> /dev/null)
 CFLAGS+=$(shell pkg-config --cflags x11 2> /dev/null)
+CFLAGS+=$(shell pkg-config --cflags xrandr 2> /dev/null)
 
 LDFLAGS+=$(shell pkg-config --libs cairo-xlib 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs xinerama 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs glib-2.0 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs x11 2> /dev/null)
+LDFLAGS+=$(shell pkg-config --libs xrandr 2> /dev/null)
 LDFLAGS+=-Xlinker -rpath=/usr/local/lib
 
 PREFIX=/usr
