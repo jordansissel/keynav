@@ -557,7 +557,7 @@ int parse_config_line(char *orig_line) {
   char *tokctx;
   char *keyseq;
   int keycode, mods;
-
+  int i, j;
   char *comment;
 
   /* Ignore everything after a '#' */
@@ -585,9 +585,9 @@ int parse_config_line(char *orig_line) {
 
     /* ungrab keybindings associated with start */
     if (startkeys->len > 0) {
-      for (int i = 0; i < ScreenCount(dpy); i++) {
+      for (i = 0; i < ScreenCount(dpy); i++) {
         Window root = RootWindow(dpy, i);
-        for (int j = 0; j < startkeys->len; j++) {
+        for (j = 0; j < startkeys->len; j++) {
           startkey_t *sk = g_ptr_array_index(startkeys, j);
           XUngrabKey(dpy, sk->keycode, sk->mods, root);
           XUngrabKey(dpy, sk->keycode, sk->mods | LockMask, root);
