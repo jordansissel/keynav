@@ -373,27 +373,23 @@ at the edge.
  # Make 'v' paste things:
  v sh "xdotool key shift+Insert",end
 
-See the author's keynavrc as an example, here:
+See the original author's keynavrc as an example, here:
 
-http://semicomplete.googlecode.com/svn/keynav/examples/keynavrc.jordan
+https://raw.githubusercontent.com/yjftsjthsd-g/keynav/master/examples/keynavrc.jordan
 
 =head1 SEE ALSO
 
 Related: L<xdotool(1)>
 
-Project site: L<http://www.semicomplete.com/projects/keynav>
+Original project site: L<http://www.semicomplete.com/projects/keynav>
 
-Google Code: L<http://semicomplete.googlecode.com/>
+Github: L<https://github.com/yjftsjthsd-g/keynav>
 
 =head1 CONTACT
 
-Please send questions and comments to keynav-users@googlegroups.com. File
-bugs and feature requests at the following URL:
+For all questions, comments, bugs, and feature requests, please open an issue at:
 
-L<http://code.google.com/p/semicomplete/issues/list>
-
-Alternately, if you really prefer email, feel free to file bugs by emailing the
-list. What works for you :)
+L<https://github.com/yjftsjthsd-g/keynav/issues>
 
 =head1 AUTHORS
 
