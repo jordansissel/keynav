@@ -324,7 +324,7 @@ at the edge.
  Escape end
  ctrl+bracketleft end
  q record ~/.keynav_macros
- shift-at playback
+ shift+at playback
  a history-back
  h cut-left
  j cut-down
