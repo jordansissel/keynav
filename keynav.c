@@ -2097,12 +2097,14 @@ int main(int argc, char **argv) {
         break;
 
       case MotionNotify:
+        if (zone) {
         if (mouseinfo.x != -1 && mouseinfo.y != -1) {
           closepixel(dpy, zone, &mouseinfo);
         }
         mouseinfo.x = e.xmotion.x;
         mouseinfo.y = e.xmotion.y;
         openpixel(dpy, zone, &mouseinfo);
+        }
         break;
 
       // Ignorable events.
