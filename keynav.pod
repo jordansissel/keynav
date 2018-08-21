@@ -27,7 +27,9 @@ Another example: daemonize on startup:
 =head1 CONFIGURATION
 
 keynav is configured by default from a config file in your home directory
-"~/.keynavrc"
+"~/.keynavrc" or "$XDG_CONFIG_HOME/keynav/keynavrc" per the XDG Base Directory
+standard (defaulting to "~/.config/keynav/keynavrc" if XDG_CONFIG_HOME is not
+set).
 
 The default configuration can be found in the L<DEFAULT CONFIGURATION> section.
 
@@ -264,6 +266,11 @@ Start keynav. Any keys with this binding will operate as global bindings to acti
 End keynav. This hides the keynav window and otherwise makes keynav inactive
 until the next 'start' command.
 
+=item B<toggle-start>
+
+Toggle keynav.  If keynav is active, this makes it inactive.  If keynav is
+inactive, this makes it active.
+
 =item B<history-back>
 
 Go backwards in command history. All activity is tracked in history, so if you
@@ -366,30 +373,41 @@ at the edge.
  # Make 'v' paste things:
  v sh "xdotool key shift+Insert",end
 
-See the author's keynavrc as an example, here:
+See the original author's keynavrc as an example, here:
 
-http://semicomplete.googlecode.com/svn/keynav/examples/keynavrc.jordan
+https://raw.githubusercontent.com/yjftsjthsd-g/keynav/master/examples/keynavrc.jordan
 
 =head1 SEE ALSO
 
 Related: L<xdotool(1)>
 
-Project site: L<http://www.semicomplete.com/projects/keynav>
+Original project site: L<http://www.semicomplete.com/projects/keynav>
 
-Google Code: L<http://semicomplete.googlecode.com/>
+Github: L<https://github.com/yjftsjthsd-g/keynav>
 
 =head1 CONTACT
 
-Please send questions and comments to keynav-users@googlegroups.com. File
-bugs and feature requests at the following URL:
+For all questions, comments, bugs, and feature requests, please open an issue at:
 
-L<http://code.google.com/p/semicomplete/issues/list>
+L<https://github.com/yjftsjthsd-g/keynav/issues>
 
-Alternately, if you really prefer email, feel free to file bugs by emailing the
-list. What works for you :)
+=head1 AUTHORS
 
-=head1 AUTHOR
+keynav was originally written by Jordan Sissel.
+This version includes changes, enhancements, and fixes from at least the following (based on git logs):
 
-keynav was written by Jordan Sissel.
+Brian Cole
+Dabo Ross
+Denis Kasak
+Jordan Sissel
+Krister Svanlund
+Marek Marecki
+Shou Ya
+Stanislav Seletskiy
+Tyler Akins
+aszlig
+lilydjwg
+Alex Daniel
+Michael Sloan
 
 =cut
