@@ -55,3 +55,13 @@ or to keep scrolling without having to re-invoke keynav, remove the end command 
 ```
 i click 4
 ```
+
+Q: Can I use keynav to ctrl-click?
+A: Yes!  The only way to do this is to use ctrl+c (or ctrl+ any letter, 1 won't work) and then the ctrl will carry over to the click.  The following example is for control-click mouse button 1:
+```
+ctrl+c warp, click 1, end
+```
+or to just control-click without moving the cursor or ending keynav:
+```
+ctrl+v click 1
+```
