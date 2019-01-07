@@ -78,6 +78,9 @@ typedef struct wininfo {
   int border_thickness;
   int center_cut_size;
   int curviewport;
+  float red;
+  float green;
+  float blue;
 } wininfo_t;
 
 typedef struct mouseinfo {
@@ -142,6 +145,7 @@ void cmd_cut_left(char *args);
 void cmd_cut_right(char *args);
 void cmd_cut_up(char *args);
 void cmd_daemonize(char *args);
+void cmd_colors(char *args);
 void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
 void cmd_end(char *args);
@@ -225,6 +229,7 @@ dispatch_t dispatch[] = {
   // Other commands.
   "loadconfig", cmd_loadconfig,
   "daemonize", cmd_daemonize,
+  "colors", cmd_colors,
   "sh", cmd_shell,
   "start", cmd_start,
   "end", cmd_end,
@@ -604,6 +609,8 @@ int parse_config_line(char *orig_line) {
     handle_commands(keyseq);
   } else if (strcmp(keyseq, "loadconfig") == 0) {
     handle_commands(keyseq);
+  } else if (strcmp(keyseq, "colors") == 0) {
+    cmd_colors(tokctx);
   } else {
     keycode = parse_keycode(keyseq);
     if (keycode == 0) {
@@ -683,7 +690,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   if (draw) {
     cairo_new_path(canvas_cairo);
-    cairo_set_source_rgb(canvas_cairo, 1, 1, 1);
+    cairo_set_source_rgb(canvas_cairo, wininfo.red, wininfo.green, wininfo.blue);
     cairo_rectangle(canvas_cairo, 0, 0, w, h);
     cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
     cairo_fill(canvas_cairo);
@@ -940,6 +947,11 @@ void cmd_start(char *args) {
 
   wininfo.border_thickness = 3;
   wininfo.center_cut_size = 3;
+
+  /* Default colors to match dark themes */
+  //wininfo.red = 1.0;
+  //wininfo.green = 1.0;
+  //wininfo.blue = 1.0;
 
   if (ISACTIVE)
     return;
@@ -1351,6 +1363,21 @@ void cmd_daemonize(char *args) {
     daemonize = 1;
   }
 }
+
+void cmd_colors(char *args) {
+  float red = 0.0, green = 1.0, blue = 0.0;
+
+  int count = sscanf(args, "%f,%f,%f", &red, &green, &blue);
+  if (count != 3) {
+    fprintf(stderr,
+            "Invalid usage of 'colors' (expected 3 float arguments)\n");
+    fprintf(stderr, "Got: %d\n",  count);
+  }
+  wininfo.red = red;
+  wininfo.green = green;
+  wininfo.blue = blue;
+}
+
 
 void cmd_playback(char *args) {
   appstate.playback = 1;
