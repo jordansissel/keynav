@@ -27,7 +27,7 @@ On FreeBSD (and, I expect, other non-GNU platforms), you will want to use gmake.
 FAQ
 ---
 
-Q: What platforms are supported?  
+Q: What platforms are supported?
 A: keynav should work on nearly any Unix-like that runs X11. It has been
 confirmed to work on extremely varied GNU/Linux systems (incuding RPM-based,
 Debian derivatives, musl-based systems, and Arch), and FreeBSD. If you get it to
@@ -36,14 +36,14 @@ it on another Unix-like and have trouble, please get in touch and I'll try to
 help. If attempting to run elsewhere, note that we currently have a dependency
 on GNU Make (gmake), and it hasn't been tested with many compilers yet.
 
-Q: Does it work on Android/Windows/Wayland/iOS/...?  
+Q: Does it work on Android/Windows/Wayland/iOS/...?
 A: Sadly, no; keynav is totally dependent on X11, and porting it to any other
 graphical system would really be a clone/rewrite. Although I am aware of no
 exact analogues on other systems, I suggest looking into Tasker (Android),
 AutoHotKey (Windows), and AppleScript (macOS). If you find something that works,
 let me know and I'll consider adding it to this list.
 
-Q: Can I use keynav to scroll?  
+Q: Can I use keynav to scroll?
 A: Yes! X11 represents mouse scrolling as key presses, so you just add the
 relevant stanza to your keynavrc.  Mouse buttons are
 1=left, 2=middle, 3=right, 4=scroll-up, 5=scroll-down, 6=scroll-left, 7=scroll-right. So for example to scroll up with i and down with e:
