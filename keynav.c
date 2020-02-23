@@ -983,6 +983,9 @@ void cmd_start(char *args) {
     /* Tell the window manager not to manage us */
     winattr.override_redirect = 1;
     XChangeWindowAttributes(dpy, zone, CWOverrideRedirect, &winattr);
+    /* Set the input shape to be nothing so that the mouse can still
+     * click/scroll if on the grid */
+    XShapeCombineRectangles(dpy, zone, ShapeInput, 0, 0, NULL, 0, ShapeSet, 0);
 
     XSelectInput(dpy, zone, StructureNotifyMask | ExposureMask
                  | PointerMotionMask | LeaveWindowMask );
