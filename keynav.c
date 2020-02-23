@@ -80,11 +80,6 @@ typedef struct wininfo {
   int curviewport;
 } wininfo_t;
 
-typedef struct mouseinfo {
-  int x;
-  int y;
-} mouseinfo_t;
-
 typedef struct viewport {
   int x;
   int y;
@@ -96,7 +91,6 @@ typedef struct viewport {
 } viewport_t;
 
 static wininfo_t wininfo;
-static mouseinfo_t mouseinfo;
 static viewport_t *viewports;
 static int nviewports = 0;
 static int xinerama = 0;
@@ -191,8 +185,6 @@ void sighup(int sig);
 void restart();
 void recordings_save(const char *filename);
 void parse_recordings(const char *filename);
-void openpixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo);
-void closepixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo);
 
 typedef struct dispatch {
   char *command;
@@ -1178,21 +1170,7 @@ void cmd_warp(char *args) {
   x = wininfo.x + wininfo.w / 2;
   y = wininfo.y + wininfo.h / 2;
 
-  if (mouseinfo.x != -1 && mouseinfo.y != -1) {
-    closepixel(dpy, zone, &mouseinfo);
-  }
-
-  /* Open pixels hould be relative to the window coordinates,
-   * not screen coordinates. */
-  mouseinfo.x = x - wininfo.x;
-  mouseinfo.y = y - wininfo.y;
-  openpixel(dpy, zone, &mouseinfo);
-
   xdo_move_mouse(xdo, x, y, viewports[wininfo.curviewport].screen_num);
-  xdo_wait_for_mouse_move_to(xdo, x, y);
-
-  /* TODO(sissel): do we need to open again? */
-  openpixel(dpy, zone, &mouseinfo);
 }
 
 void cmd_click(char *args) {
@@ -1981,36 +1959,6 @@ void parse_recordings(const char *filename) {
   fclose(fp);
 }
 
-void openpixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo) {
-  XRectangle rect;
-  if (mouseinfo->x == -1 && mouseinfo->y == -1) {
-    return;
-  }
-
-  rect.x = mouseinfo->x;
-  rect.y = mouseinfo->y;
-  rect.width = 1;
-  rect.height = 1;
-
-  XShapeCombineRectangles(dpy, zone, ShapeBounding, 0, 0, &rect, 1,
-                          ShapeSubtract, 0);
-} /* void openpixel */
-
-void closepixel(Display *dpy, Window zone, mouseinfo_t *mouseinfo) {
-  XRectangle rect;
-  if (mouseinfo->x == -1 && mouseinfo->y == -1) {
-    return;
-  }
-
-  rect.x = mouseinfo->x;
-  rect.y = mouseinfo->y;
-  rect.width = 1;
-  rect.height = 1;
-
-  XShapeCombineRectangles(dpy, zone, ShapeBounding, 0, 0, &rect, 1,
-                          ShapeUnion, 0);
-} /* void closepixel */
-
 int main(int argc, char **argv) {
   char *pcDisplay;
   int ret;
@@ -2099,17 +2047,6 @@ int main(int argc, char **argv) {
         }
         break;
 
-      case MotionNotify:
-        if (zone) {
-        if (mouseinfo.x != -1 && mouseinfo.y != -1) {
-          closepixel(dpy, zone, &mouseinfo);
-        }
-        mouseinfo.x = e.xmotion.x;
-        mouseinfo.y = e.xmotion.y;
-        openpixel(dpy, zone, &mouseinfo);
-        }
-        break;
-
       // Ignorable events.
       case GraphicsExpose:
       case NoExpose:
@@ -2118,6 +2055,7 @@ int main(int argc, char **argv) {
       case DestroyNotify: // window was destroyed
       case UnmapNotify:   // window was unmapped (hidden)
       case MappingNotify: // when keyboard mapping changes
+      case MotionNotify:  // when mouse movement is detected
         break;
       default:
         if (e.type == xrandr_event_base + RRScreenChangeNotify) {
