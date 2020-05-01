@@ -34,7 +34,7 @@ set).
 The default configuration can be found in the L<DEFAULT CONFIGURATION> section.
 
 '#' will delimit comments. The configuration consists mostly of binding keys
-to keynav commands. The following to commands must appear on lines by
+to keynav commands. The following two commands must appear on lines by
 themselves, not as key bindings.
 
 =over
@@ -187,7 +187,7 @@ A visual might help. With 'grid 3x3' the following is used with cell-select:
  |     1x3      |      2x3      |      3x3      |
  |      7       |       8       |       9       |
  |              |               |               |
- |----------------------------------------------|
+ +----------------------------------------------+
 
 =back
 
@@ -305,7 +305,7 @@ This will cut and keep 75% of the window's height. That is, if the window is
 
 =item B<move-left> 1
 
-The '1' here maeans 100% of the width. This will move the window to the left by
+The '1' here means 100% of the width. This will move the window to the left by
 the full width of the window.
 
 =item B<move-down> 100
@@ -319,7 +319,7 @@ The '100' here means 100 pixels. This will move the window down by 100 pixels.
 When moving the keynav window around, the window will not go outside of the
 screen boundaries. One exception is for multiple displays: a movement outside
 of the current screen can move the keynav window to the next screen if keynav
-things it's the right thing to do.
+thinks it's the right thing to do.
 
 If a move would take you beyond the screen borders, then the window will stop moving
 at the edge.
