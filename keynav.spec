@@ -6,9 +6,17 @@ License:   FIXME
 Group:     Productivity
 URL:       https://www.semicomplete.com/projects/keynav
 
+Source0:  https://github.com/dhalucario/%{name}/archive/%{version}.tar.gz
+
 BuildRequires: make
 BuildRequires: gcc
-Requires:
+BuildRequires: libX11-devel
+BuildRequires: libXext-devel
+BuildRequires: libXinerama-devel
+BuildRequires: libXrandr-devel
+BuildRequires: glib2-devel
+BuildRequires: cairo-devel
+BuildRequires: libxdo-devel
 
 %description
 
