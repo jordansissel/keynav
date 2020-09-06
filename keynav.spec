@@ -1,5 +1,5 @@
 Name:      keynav
-Version:   0.20200906.3
+Version:   0.20200906.4
 Release:   1%{dist}
 Summary:   A powerful MUD client with a built-in Perl interpreter
 License:   FIXME
@@ -10,6 +10,7 @@ Source0:  https://github.com/dhalucario/%{name}/archive/%{version}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRequires: make
 BuildRequires: gcc
+BuildRequires: perl-podlators
 BuildRequires: libX11-devel
 BuildRequires: libXext-devel
 BuildRequires: libXinerama-devel
