@@ -1,5 +1,5 @@
 Name:      keynav
-Version:   0.20200906.0
+Version:   0.20200906.1
 Release:   1%{dist}
 Summary:   A powerful MUD client with a built-in Perl interpreter
 License:   FIXME
