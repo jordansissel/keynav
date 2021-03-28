@@ -11,7 +11,7 @@ LDFLAGS+=$(shell pkg-config --libs x11 2> /dev/null)
 LDFLAGS+=$(shell pkg-config --libs xrandr 2> /dev/null)
 LDFLAGS+=-Xlinker -rpath=/usr/local/lib
 
-PREFIX=/usr
+PREFIX ?= /usr
 
 OTHERFILES=README.md CHANGELIST COPYRIGHT keynav.pod \
            keynavrc Makefile version.sh VERSION

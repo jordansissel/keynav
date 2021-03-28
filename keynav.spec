@@ -24,9 +24,8 @@ BuildRequires: libxdo-devel
 %prep
 %setup -q
 make %{?_smp_mflags}
-
-rm -rf $RPM_BUILD_ROOT
-make DESTDIR=$RPM_BUILD_ROOT install
+make PREFIX=%{buildroot}/usr/ install
 
 %files
-%doc
+/usr/bin/keynav
+/usr/share/man/man1/keynav.1.gz
