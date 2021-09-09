@@ -40,8 +40,9 @@ Q: Does it work on Android/Windows/Wayland/iOS/...?
 A: Sadly, no; keynav is totally dependent on X11, and porting it to any other
 graphical system would really be a clone/rewrite. Although I am aware of no
 exact analogues on other systems, I suggest looking into Tasker (Android),
-AutoHotKey (Windows), and AppleScript (macOS). If you find something that works,
-let me know and I'll consider adding it to this list.
+AutoHotKey (Windows), and AppleScript (macOS). For example, [vim_mouse_2.ahk](https://github.com/4strid/vim_mouse_2.ahk)
+can be [adapted]( https://gist.github.com/Konfekt/b2efadb9c8d20b67d8bbe358f51c33a5/revisions) to use
+keynav's keybinding. If you find something that works, let me know and I'll consider adding it to this list.
 
 Q: Can I use keynav to scroll?  
 A: Yes! X11 represents mouse scrolling as key presses, so you just add the
