@@ -24,6 +24,9 @@
 # Use 'daemonize' to background ourselves.
 #daemonize
 
+# Use 'picomfix' to fix issues associated with the picom compositor. May cause flickering.
+# picomfix
+
 ctrl+semicolon start
 Escape end
 ctrl+bracketleft end
