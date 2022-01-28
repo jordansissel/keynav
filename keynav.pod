@@ -45,6 +45,11 @@ This will make keynav background itself after parsing the config file and
 setting up keybindings. If there are errors during keybinding, then keynav
 will not background and will exit with failure.
 
+=item B<picomfix>
+
+This will fix an issue where keynav disappears when the picom compositor is
+running, enabling this may cause more flickering.
+
 =item B<clear>
 
 This wil clear all existing keybindings. This is useful if, for example, you do
