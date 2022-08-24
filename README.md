@@ -5,6 +5,11 @@ Control the mouse with the keyboard.
 
 Please see http://www.semicomplete.com/projects/keynav
 
+Related Projects
+----------------
+
+This project (keynav) only works on X11, but if you want to use a similar tool for Windows, check out [keynavish](https://github.com/lesderid/keynavish)!
+
 
 Compiling
 ---------
