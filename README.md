@@ -18,6 +18,10 @@ You may need some extra libraries to compile keynav.  On Debian and Ubuntu you c
 
     sudo apt-get install libcairo2-dev libxinerama-dev libxdo-dev
 
+On Fedora you can install these packages:
+    
+    dnf install cairo-devel libXinerama-devel libxdo-devel
+
 Next you simply run make:
 
     make
