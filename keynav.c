@@ -102,6 +102,7 @@ static int nviewports = 0;
 static int xinerama = 0;
 static int daemonize = 0;
 static int is_daemon = False;
+static int picomfix = False;
 
 static Display *dpy;
 static Window zone;
@@ -604,6 +605,8 @@ int parse_config_line(char *orig_line) {
     handle_commands(keyseq);
   } else if (strcmp(keyseq, "loadconfig") == 0) {
     handle_commands(keyseq);
+  } else if (strcmp(keyseq, "picomfix") == 0) {
+    picomfix=True;
   } else {
     keycode = parse_keycode(keyseq);
     if (keycode == 0) {
@@ -1419,7 +1422,9 @@ void update() {
   if (((clip || draw) + (move || resize)) > 1) {
     /* more than one action to perform, unmap to hide move/draws
      * to reduce flickering */
-    XUnmapWindow(dpy, zone);
+    if (picomfix == False) {
+      XUnmapWindow(dpy, zone);
+    }
   }
 
   if (clip || draw) {
