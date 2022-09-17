@@ -16,7 +16,7 @@ Compiling
 
 You may need some extra libraries to compile keynav.  On Debian and Ubuntu you can install these packages:
 
-    sudo apt-get install libcairo2-dev libxinerama-dev libxdo-dev
+    sudo apt-get install libcairo2-dev libxinerama-dev libxdo-dev libxrandr-dev
 
 Next you simply run make:
 
