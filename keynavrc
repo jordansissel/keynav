@@ -48,6 +48,8 @@ semicolon warp,end
 1 click 1
 2 click 2
 3 click 3
+# to control-click, add ctrl+<letter> as the activator
+ctrl+c warp,click1,end
 
 # Zoom to the current window
 w windowzoom
