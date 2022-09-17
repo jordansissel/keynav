@@ -1811,20 +1811,31 @@ void query_screens() {
 }
 
 void query_screen_xinerama() {
-  int i;
+  int i, j, num_screens;
   XineramaScreenInfo *screeninfo;
 
-  screeninfo = XineramaQueryScreens(dpy, &nviewports);
+  screeninfo = XineramaQueryScreens(dpy, &num_screens);
   free(viewports);
-  viewports = calloc(nviewports, sizeof(viewport_t));
-  for (i = 0; i < nviewports; i++) {
-    viewports[i].x = screeninfo[i].x_org;
-    viewports[i].y = screeninfo[i].y_org;
-    viewports[i].w = screeninfo[i].width;
-    viewports[i].h = screeninfo[i].height;
-    viewports[i].screen_num = 0;
-    viewports[i].screen = ScreenOfDisplay(dpy, 0);
-    viewports[i].root = DefaultRootWindow(dpy);
+  viewports = calloc(num_screens, sizeof(viewport_t));
+  nviewports = 0;
+  for (i = 0; i < num_screens; i++) {
+    int overlapping = 0;
+    for (j = 0; j < nviewports; j++) {
+      if (viewports[j].x == screeninfo[i].x_org && viewports[j].y == screeninfo[i].y_org) {
+        overlapping = 1;
+        break;
+      }
+    }
+    if (!overlapping) {
+      viewports[nviewports].x = screeninfo[i].x_org;
+      viewports[nviewports].y = screeninfo[i].y_org;
+      viewports[nviewports].w = screeninfo[i].width;
+      viewports[nviewports].h = screeninfo[i].height;
+      viewports[nviewports].screen_num = 0;
+      viewports[nviewports].screen = ScreenOfDisplay(dpy, 0);
+      viewports[nviewports].root = DefaultRootWindow(dpy);
+      nviewports++;
+    }
   }
   XFree(screeninfo);
 }
